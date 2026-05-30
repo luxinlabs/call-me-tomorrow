@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Call Me Tomorrow.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --void:      #0a0a0f;
+      --oracle:    #c8b09a;
+      --parchment: #e8e4dc;
+      --dusk:      #1c1c22;
+      --answer:    #5ab87a;
+      --muted:     rgba(232,228,220,0.35);
+      --border:    rgba(200,176,154,0.12);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--void);
+      color: var(--parchment);
+      font-family: 'DM Mono', monospace;
+      font-weight: 300;
+      min-height: 100vh;
+    }
+
+    .page { max-width: 680px; margin: 0 auto; padding: 0 2rem; }
+
+    /* ── Nav ── */
+    nav { padding: 2.5rem 0 0; }
+    .clock-icon { width: 42px; height: 42px; opacity: 0.65; }
+
+    /* ── Hero ── */
+    .hero { padding: 5rem 0 3rem; }
+    .headline {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3.8rem, 11vw, 7rem);
+      font-weight: 300;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+    }
+    .headline em { font-style: italic; color: var(--oracle); }
+    .tagline {
+      margin-top: 1.4rem;
+      font-size: 0.6rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--oracle);
+      opacity: 0.7;
+    }
+
+    .divider { width: 100%; height: 1px; background: var(--border); margin: 2.5rem 0; }
+
+    .body-copy {
+      font-size: 0.8rem;
+      line-height: 1.8;
+      opacity: 0.75;
+      max-width: 420px;
+    }
+
+    /* ── Channel pills ── */
+    .selectors { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1.4rem; }
+
+    .selector-group { display: flex; flex-direction: column; gap: 0.45rem; }
+
+    .selector-label {
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--oracle);
+      opacity: 0.5;
+    }
+
+    .pill-group { display: flex; gap: 0.4rem; }
+
+    .pill {
+      padding: 0.45rem 1.1rem;
+      border-radius: 100px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      transition: all 0.15s ease;
+    }
+    .pill:hover { border-color: rgba(200,176,154,0.3); color: var(--parchment); }
+    .pill.active { border-color: var(--oracle); color: var(--oracle); background: rgba(200,176,154,0.07); }
+
+    /* ════════════════════════════════════════
+       TIME MACHINE
+    ════════════════════════════════════════ */
+    .time-machine {
+      position: relative;
+      width: 100%;
+      max-width: 340px;
+      background: var(--dusk);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem 1.75rem 1.4rem;
+      cursor: pointer;
+      user-select: none;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .time-machine:hover { border-color: rgba(200,176,154,0.25); }
+
+    .time-machine.locked {
+      border-color: rgba(90,184,122,0.35);
+      box-shadow: 0 0 0 1px rgba(90,184,122,0.1);
+      cursor: default;
+    }
+
+    /* Scanline glow that moves up during spin */
+    .tm-scanline {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--oracle), transparent);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .time-machine.spinning .tm-scanline {
+      opacity: 0.4;
+      animation: scanMove 1.8s linear infinite;
+    }
+    @keyframes scanMove {
+      0%   { top: 100%; }
+      100% { top: -10%; }
+    }
+
+    /* Top label */
+    .tm-label {
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--oracle);
+      opacity: 0.45;
+      margin-bottom: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .tm-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--oracle);
+      opacity: 0.6;
+    }
+    .time-machine.spinning .tm-dot { animation: tmPulse 0.9s ease-in-out infinite; }
+    .time-machine.locked .tm-dot { background: var(--answer); opacity: 1; animation: none; }
+    @keyframes tmPulse { 0%,100%{opacity:0.6} 50%{opacity:0.15} }
+
+    /* Year display window */
+    .tm-window {
+      position: relative;
+      height: 5rem;
+      overflow: hidden;
+    }
+
+    /* Fade masks at top/bottom of window */
+    .tm-window::before,
+    .tm-window::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 1.2rem;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .tm-window::before { top: 0; background: linear-gradient(to bottom, var(--dusk), transparent); }
+    .tm-window::after  { bottom: 0; background: linear-gradient(to top, var(--dusk), transparent); }
+
+    /* The reel — contains multiple year slots, animates translateY */
+    .tm-reel {
+      position: absolute;
+      width: 100%;
+      will-change: transform;
+    }
+
+    .tm-slot {
+      height: 5rem;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .tm-year {
+      font-size: 3.4rem;
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      color: var(--parchment);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.2s;
+    }
+
+    .time-machine.locked .tm-year { color: var(--parchment); }
+
+    /* Sub-line: "X years from now" */
+    .tm-sub {
+      margin-top: 0.5rem;
+      font-size: 0.62rem;
+      color: var(--oracle);
+      opacity: 0.6;
+      letter-spacing: 0.06em;
+      height: 1rem;
+      transition: opacity 0.2s;
+    }
+
+    /* Instruction */
+    .tm-instruction {
+      margin-top: 1.1rem;
+      font-size: 0.58rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      transition: opacity 0.3s, color 0.3s;
+    }
+    .time-machine.spinning .tm-instruction { color: var(--muted); }
+    .time-machine.locked  .tm-instruction { color: var(--answer); opacity: 0.8; }
+
+    /* Reset link */
+    .tm-reset {
+      display: none;
+      font-size: 0.55rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      margin-top: 0.35rem;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .tm-reset:hover { color: var(--oracle); }
+    .time-machine.locked .tm-reset { display: inline-block; }
+
+    /* ── Phone field ── */
+    .phone-row {
+      margin-top: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      max-width: 260px;
+    }
+
+    .phone-input {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.85rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 300;
+      color: var(--parchment);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .phone-input::placeholder { color: var(--muted); }
+    .phone-input:focus { border-color: rgba(200,176,154,0.35); }
+
+    /* ── Call card ── */
+    .call-section { padding: 3.5rem 0 2.5rem; }
+
+    .call-card {
+      width: 100%;
+      max-width: 310px;
+      background: var(--dusk);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.75rem 1.75rem 1.5rem;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.55);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .call-card.answered {
+      border-color: rgba(90,184,122,0.3);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(90,184,122,0.12);
+    }
+
+    .call-label {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1.1rem;
+    }
+    .call-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--answer);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+    .caller-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 2.3rem; font-weight: 300;
+      color: var(--parchment); line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+    .caller-id { font-size: 0.58rem; letter-spacing: 0.06em; color: var(--oracle); opacity: 0.65; margin-bottom: 1.5rem; }
+
+    .call-timer {
+      font-size: 2.5rem; font-weight: 300; letter-spacing: -0.02em;
+      color: var(--parchment); line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .timer-colon { animation: blink 1s step-start infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    .call-date { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; margin-bottom: 1.6rem; }
+
+    .call-actions { display: flex; gap: 0.65rem; }
+
+    .btn {
+      flex: 1; padding: 0.65rem 0; border-radius: 8px;
+      font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 300;
+      letter-spacing: 0.04em; cursor: pointer; transition: all 0.15s ease;
+      text-align: center; text-decoration: none; display: block;
+    }
+    .btn-decline {
+      background: transparent; color: var(--parchment);
+      border: 1px solid rgba(232,228,220,0.18);
+    }
+    .btn-decline:hover { border-color: rgba(232,228,220,0.35); }
+    .btn-answer {
+      background: var(--answer); color: var(--void);
+      border: 1px solid var(--answer); font-weight: 400;
+    }
+    .btn-answer:hover {
+      background: #6dd48e;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(90,184,122,0.28);
+    }
+
+    .connecting {
+      display: none; font-size: 0.62rem; letter-spacing: 0.12em;
+      color: var(--oracle); opacity: 0.7; margin-top: 1rem; text-transform: uppercase;
+    }
+    .connecting.visible { display: block; }
+
+    /* ── Voice lines ── */
+    .lines-section { padding: 0.5rem 0 6rem; }
+    .lines-label {
+      font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--oracle); opacity: 0.45; margin-bottom: 1.75rem;
+    }
+    .voice-line {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 2rem; padding: 1.1rem 0; border-top: 1px solid var(--border);
+    }
+    .voice-line:last-child { border-bottom: 1px solid var(--border); }
+    .voice-line-text {
+      font-family: 'Cormorant Garamond', serif; font-style: italic;
+      font-size: 1.35rem; font-weight: 300; color: var(--parchment);
+      line-height: 1.3; flex: 1;
+    }
+    .voice-line-tag {
+      font-size: 0.52rem; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--oracle); opacity: 0.35; white-space: nowrap;
+    }
+
+    /* ── Onboarding card ── */
+    .onboarding-section {
+      padding: 3rem 0 0;
+    }
+
+    .onboarding-card {
+      width: 100%;
+      max-width: 480px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .onboarding-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.5rem 1.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .onboarding-header:hover .ob-title { color: var(--parchment); }
+
+    .ob-badge {
+      font-size: 0.52rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--oracle);
+      opacity: 0.55;
+      margin-bottom: 0.45rem;
+    }
+
+    .ob-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1.4rem;
+      color: var(--parchment);
+      opacity: 0.85;
+      line-height: 1.2;
+      transition: color 0.15s;
+    }
+
+    .ob-meta {
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      letter-spacing: 0.04em;
+    }
+
+    .ob-chevron {
+      font-size: 0.7rem;
+      color: var(--oracle);
+      opacity: 0.45;
+      margin-top: 0.2rem;
+      transition: transform 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    .onboarding-card.open .ob-chevron { transform: rotate(180deg); }
+
+    /* Collapsible body */
+    .onboarding-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .onboarding-card.open .onboarding-body { max-height: 600px; }
+
+    .onboarding-inner { padding: 1.5rem 1.75rem 1.75rem; }
+
+    .ob-desc {
+      font-size: 0.75rem;
+      line-height: 1.75;
+      color: var(--parchment);
+      opacity: 0.65;
+      margin-bottom: 1.4rem;
+    }
+
+    .ob-questions {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-bottom: 1.6rem;
+    }
+
+    .ob-q {
+      display: flex;
+      gap: 0.85rem;
+      align-items: baseline;
+      padding: 0.65rem 0;
+      border-top: 1px solid var(--border);
+    }
+    .ob-q:last-child { border-bottom: 1px solid var(--border); }
+
+    .ob-q-num {
+      font-size: 0.55rem;
+      letter-spacing: 0.08em;
+      color: var(--oracle);
+      opacity: 0.45;
+      flex-shrink: 0;
+      width: 1.2rem;
+    }
+
+    .ob-q-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--parchment);
+      opacity: 0.8;
+      line-height: 1.35;
+    }
+
+    .btn-onboard {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 300;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid var(--oracle);
+      color: var(--oracle);
+      transition: all 0.18s ease;
+      text-align: center;
+    }
+    .btn-onboard:hover {
+      background: rgba(200,176,154,0.08);
+      border-color: rgba(200,176,154,0.6);
+    }
+
+    .btn-call-phone {
+      margin-top: 0.55rem;
+      border-color: var(--answer) !important;
+      color: var(--answer) !important;
+    }
+    .btn-call-phone:hover {
+      background: rgba(90,184,122,0.08) !important;
+    }
+
+    .ob-connecting {
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--oracle);
+      opacity: 0.65;
+      text-align: center;
+      margin-top: 0.85rem;
+      min-height: 1rem;
+    }
+
+    /* divider between onboarding card and call card */
+    .section-or {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 2.5rem 0 0;
+      max-width: 480px;
+    }
+    .section-or-line { flex: 1; height: 1px; background: var(--border); }
+    .section-or-text {
+      font-size: 0.55rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--oracle);
+      opacity: 0.35;
+    }
+
+    @media (max-width: 480px) {
+      .headline { font-size: 3.2rem; }
+      .call-card, .time-machine, .onboarding-card { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <nav>
+    <svg class="clock-icon" viewBox="0 0 42 42" fill="none">
+      <circle cx="21" cy="21" r="19.5" stroke="#c8b09a" stroke-width="1" stroke-opacity="0.45"/>
+      <line x1="21" y1="21" x2="21" y2="10" stroke="#c8b09a" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.65"/>
+      <line x1="21" y1="21" x2="28" y2="25" stroke="#c8b09a" stroke-width="1" stroke-linecap="round" stroke-opacity="0.45"/>
+      <circle cx="21" cy="21" r="1.5" fill="#c8b09a" fill-opacity="0.65"/>
+    </svg>
+  </nav>
+
+  <section class="hero">
+    <h1 class="headline">Call <em>Me</em><br>Tomorrow.</h1>
+    <p class="tagline">A phone call from your future self</p>
+  </section>
+
+  <div class="divider"></div>
+
+  <p class="body-copy">
+    Your future self has been trying to reach you.
+    The call lasts 8 minutes. By the end, you'll have
+    three things to do before next week.
+  </p>
+
+  <!-- Selectors -->
+  <div class="selectors">
+
+    <!-- Channel -->
+    <div class="selector-group">
+      <span class="selector-label">Channel</span>
+      <div class="pill-group" id="channelGroup">
+        <button class="pill active" data-value="career" onclick="selectPill('channelGroup',this)">Career</button>
+        <button class="pill" data-value="life"   onclick="selectPill('channelGroup',this)">Life</button>
+      </div>
+    </div>
+
+    <!-- Time Machine -->
+    <div class="selector-group">
+      <span class="selector-label">How far ahead?</span>
+
+      <div class="time-machine spinning" id="timeMachine" onclick="handleTimeMachineClick()">
+        <div class="tm-scanline"></div>
+
+        <div class="tm-label">
+          <span class="tm-dot"></span>
+          <span id="tmLabelText">Time machine</span>
+        </div>
+
+        <!-- Reel window -->
+        <div class="tm-window">
+          <div class="tm-reel" id="tmReel">
+            <!-- Slots injected by JS -->
+          </div>
+        </div>
+
+        <div class="tm-sub" id="tmSub"></div>
+        <div class="tm-instruction" id="tmInstruction">Tap anywhere to stop</div>
+        <span class="tm-reset" id="tmReset" onclick="resetTimeMachine(event)">↺ spin again</span>
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-row">
+      <span class="selector-label">Your number (returning user?)</span>
+      <input class="phone-input" id="phoneInput" type="tel" placeholder="+1 (415) 000-0000" autocomplete="tel" />
+    </div>
+
+  </div>
+
+  <!-- Onboarding card -->
+  <section class="onboarding-section">
+    <div class="onboarding-card" id="onboardingCard">
+
+      <div class="onboarding-header" onclick="toggleOnboarding()">
+        <div>
+          <div class="ob-badge">First time? · ~15 min</div>
+          <div class="ob-title">Set up your profile</div>
+          <div class="ob-meta">8 questions &nbsp;·&nbsp; recorded &amp; remembered</div>
+        </div>
+        <span class="ob-chevron">▾</span>
+      </div>
+
+      <div class="onboarding-body">
+        <div class="onboarding-inner">
+          <p class="ob-desc">
+            Before Future Me can speak to you meaningfully, we need to know you.
+            This call is a conversation — not a form. Eight questions, asked one at a time.
+            Your answers become the foundation for every call after this.
+          </p>
+
+          <div class="ob-questions" id="obQuestions">
+            <!-- Populated by JS based on selected channel -->
+          </div>
+
+          <!-- Browser WebRTC option (always available) -->
+          <button class="btn-onboard" id="btnOnboardBrowser" onclick="handleOnboarding()">
+            Begin in browser
+          </button>
+
+          <!-- Phone call option (shown when phone number is entered) -->
+          <button class="btn-onboard btn-call-phone" id="btnCallPhone"
+                  style="display:none" onclick="handleCallMyPhone()">
+            Call my phone
+          </button>
+
+          <p class="ob-connecting" id="obConnecting"></p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Divider -->
+  <div class="section-or">
+    <div class="section-or-line"></div>
+    <span class="section-or-text">or</span>
+    <div class="section-or-line"></div>
+  </div>
+
+  <!-- Call card -->
+  <section class="call-section">
+    <div class="call-card" id="callCard">
+      <div class="call-label"><span class="call-dot"></span>Incoming call</div>
+      <div class="caller-name">Future You</div>
+      <div class="caller-id">call_me_tomorrow &middot; +1 (415) 000-2035</div>
+      <div class="call-timer">
+        <span id="minutes">08</span><span class="timer-colon">:</span><span id="seconds">12</span>
+      </div>
+      <div class="call-date" id="callDate"></div>
+      <div class="call-actions">
+        <button class="btn btn-decline" onclick="handleDecline()">Decline</button>
+        <button class="btn btn-answer" onclick="handleAnswer()">Answer</button>
+      </div>
+    </div>
+    <p class="connecting" id="connectingMsg">Connecting to Future Me...</p>
+  </section>
+
+  <!-- Voice lines -->
+  <section class="lines-section">
+    <p class="lines-label">Voice lines</p>
+    <div class="voice-line">
+      <span class="voice-line-text">A phone call from your future self.</span>
+      <span class="voice-line-tag">Hero</span>
+    </div>
+    <div class="voice-line">
+      <span class="voice-line-text">Tomorrow already knows.</span>
+      <span class="voice-line-tag">Alt 1</span>
+    </div>
+    <div class="voice-line">
+      <span class="voice-line-text">Pick up. It's you.</span>
+      <span class="voice-line-tag">Alt 2</span>
+    </div>
+    <div class="voice-line">
+      <span class="voice-line-text">Your future self has been trying to reach you.</span>
+      <span class="voice-line-tag">Long form</span>
+    </div>
+  </section>
+
+</div><!-- /page -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+// TIME MACHINE
+// ═══════════════════════════════════════════════════════
+const NOW = new Date().getFullYear();
+const MIN_YEARS = 1;
+const MAX_YEARS = 12;
+const YEARS = Array.from({ length: MAX_YEARS }, (_, i) => NOW + i + 1); // 2027…2038
+
+let tmSpinning = true;
+let tmLockedYear = null;
+let tmCurrentIndex = 0;
+let tmInterval = null;
+let tmAnimating = false;
+
+const reel       = document.getElementById('tmReel');
+const tmSub      = document.getElementById('tmSub');
+const tmInstr    = document.getElementById('tmInstruction');
+const tmLabel    = document.getElementById('tmLabelText');
+const tmMachine  = document.getElementById('timeMachine');
+
+// Build reel slots (one per year + clones at start/end for seamless loop)
+function buildReel() {
+  reel.innerHTML = '';
+  const allYears = [...YEARS, ...YEARS, ...YEARS]; // triple for seamless cycling
+  allYears.forEach(yr => {
+    const slot = document.createElement('div');
+    slot.className = 'tm-slot';
+    slot.innerHTML = `<span class="tm-year">${yr}</span>`;
+    reel.appendChild(slot);
+  });
+  // Start in the middle set so we can loop both ways
+  tmCurrentIndex = YEARS.length;
+  applyReelPosition(false);
+}
+
+function applyReelPosition(animate) {
+  const slotH = 80; // px — matches .tm-slot height (5rem @ 16px = 80px)
+  const offset = -tmCurrentIndex * slotH;
+  reel.style.transition = animate ? 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+  reel.style.transform = `translateY(${offset}px)`;
+}
+
+function currentYear() {
+  const idx = tmCurrentIndex % YEARS.length;
+  return YEARS[idx];
+}
+
+function updateSub(yr) {
+  const diff = yr - NOW;
+  tmSub.textContent = `· ${diff} year${diff === 1 ? '' : 's'} from now`;
+  // Also update call card date
+  const d = new Date();
+  d.setFullYear(yr);
+  document.getElementById('callDate').textContent =
+    d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function tick(fast) {
+  if (!tmSpinning || tmAnimating) return;
+  tmAnimating = true;
+  tmCurrentIndex++;
+
+  // Seamless wrap: if we've gone past 2× set, reset to 1× set quietly
+  if (tmCurrentIndex >= YEARS.length * 2) {
+    reel.style.transition = 'none';
+    tmCurrentIndex = YEARS.length + (tmCurrentIndex - YEARS.length * 2);
+    reel.style.transform = `translateY(${-tmCurrentIndex * 80}px)`;
+    // Force reflow then animate
+    void reel.offsetHeight;
+  }
+
+  applyReelPosition(true);
+  updateSub(currentYear());
+
+  const dur = fast ? 120 : 320;
+  setTimeout(() => { tmAnimating = false; }, dur + 20);
+}
+
+function startSpinning() {
+  clearInterval(tmInterval);
+  // Accelerate: start slow, speed up
+  let delay = 500;
+  let spins = 0;
+
+  function scheduleTick() {
+    tmInterval = setTimeout(() => {
+      if (!tmSpinning) return;
+      tick(delay < 200);
+      spins++;
+      if (delay > 160) delay = Math.max(160, delay - 40);
+      scheduleTick();
+    }, delay);
+  }
+  scheduleTick();
+}
+
+function handleTimeMachineClick() {
+  if (!tmSpinning) return;
+  stopMachine();
+}
+
+function stopMachine() {
+  tmSpinning = false;
+  clearInterval(tmInterval);
+  clearTimeout(tmInterval);
+
+  tmLockedYear = currentYear();
+  tmMachine.classList.remove('spinning');
+  tmMachine.classList.add('locked');
+  tmLabel.textContent = 'Locked in';
+  tmInstr.textContent = `Future Me is from ${tmLockedYear}`;
+  updateSub(tmLockedYear);
+  tmMachine.style.cursor = 'default';
+}
+
+function resetTimeMachine(e) {
+  e.stopPropagation();
+  tmSpinning = true;
+  tmLockedYear = null;
+  tmMachine.classList.remove('locked');
+  tmMachine.classList.add('spinning');
+  tmLabel.textContent = 'Time machine';
+  tmInstr.textContent = 'Tap anywhere to stop';
+  tmMachine.style.cursor = 'pointer';
+  startSpinning();
+}
+
+// Init
+buildReel();
+updateSub(currentYear());
+startSpinning();
+
+
+// ═══════════════════════════════════════════════════════
+// ONBOARDING CARD
+// ═══════════════════════════════════════════════════════
+const ONBOARDING_QUESTIONS = {
+  career: [
+    "What made you pick this up today? What's actually going on with your work?",
+    "Tell me about a time when you were really in your element professionally.",
+    "What's different between that version of you and where you are today?",
+    "Suppose tonight a miracle happens and you wake up {horizon} years later — what's the first thing you notice is different?",
+    "What keeps showing up in your way? Not the obvious stuff — the real thing.",
+    "What actually matters most to you in your work?",
+    "What would you lose if things actually changed?",
+    "On a scale of 1 to 10 — how ready are you, honestly, to do something different?",
+  ],
+  life: [
+    "What's going on for you right now? Start wherever feels most true.",
+    "Tell me about a time when you felt genuinely like yourself — alive, engaged.",
+    "What's the distance between that and where you are today?",
+    "Imagine you wake up {horizon} years from now — a miracle happened. What's different?",
+    "What pattern keeps getting in your way — the thing you recognize but can't shake?",
+    "When you strip everything away, what actually matters most to you?",
+    "What would you lose if you actually changed?",
+    "Scale of 1 to 10 — how ready are you to do something different?",
+  ],
+};
+
+function renderOnboardingQuestions() {
+  const channel = getSelected('channelGroup') || 'career';
+  const horizon = (tmLockedYear ? tmLockedYear - NOW : 5);
+  const qs = (ONBOARDING_QUESTIONS[channel] || ONBOARDING_QUESTIONS.career)
+    .map(q => q.replace('{horizon}', `${horizon} years`));
+
+  document.getElementById('obQuestions').innerHTML = qs.map((q, i) =>
+    `<div class="ob-q">
+       <span class="ob-q-num">0${i+1}</span>
+       <span class="ob-q-text">${q}</span>
+     </div>`
+  ).join('');
+}
+
+function toggleOnboarding() {
+  const card = document.getElementById('onboardingCard');
+  const isOpen = card.classList.contains('open');
+  if (!isOpen) renderOnboardingQuestions();
+  card.classList.toggle('open', !isOpen);
+}
+
+// Re-render questions if channel changes while card is open
+const _origSelectPill = window.selectPill;
+window.selectPill = function(groupId, el) {
+  _origSelectPill(groupId, el);
+  const card = document.getElementById('onboardingCard');
+  if (card.classList.contains('open') && groupId === 'channelGroup') {
+    renderOnboardingQuestions();
+  }
+};
+
+// ── Phone input watcher — shows "Call my phone" when number is entered ──────
+document.getElementById('phoneInput').addEventListener('input', function() {
+  const val = this.value.trim();
+  const hasPhone = val.length >= 7;
+  document.getElementById('btnCallPhone').style.display = hasPhone ? 'block' : 'none';
+  document.getElementById('btnOnboardBrowser').textContent =
+    hasPhone ? 'Begin in browser instead' : 'Begin in browser';
+});
+
+// ── Browser WebRTC onboarding ─────────────────────────────────────────────
+async function handleOnboarding() {
+  const channel     = getSelected('channelGroup') || 'career';
+  const lockedYear  = tmLockedYear || currentYear();
+  const timeHorizon = lockedYear - NOW;
+  const phone       = document.getElementById('phoneInput').value.trim();
+
+  const btn = document.getElementById('btnOnboardBrowser');
+  btn.textContent = 'Connecting...';
+  btn.disabled = true;
+  setObStatus('Starting browser call...');
+
+  if (tmSpinning) stopMachine();
+
+  try {
+    const res = await fetch('/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transport: 'webrtc',
+        body: { channel, time_horizon: timeHorizon, phone: phone || null, force_onboarding: true },
+      }),
+    });
+    if (!res.ok) throw new Error(`/start returned ${res.status}`);
+    const data = await res.json();
+    window.location.href = `/client/?session_id=${data.sessionId}`;
+  } catch (err) {
+    console.error('Browser onboarding failed:', err);
+    setObStatus('Connection failed — try again.');
+    btn.textContent = 'Begin in browser';
+    btn.disabled = false;
+  }
+}
+
+// ── Outbound phone call ───────────────────────────────────────────────────
+async function handleCallMyPhone() {
+  const channel     = getSelected('channelGroup') || 'career';
+  const lockedYear  = tmLockedYear || currentYear();
+  const timeHorizon = lockedYear - NOW;
+  const phone       = document.getElementById('phoneInput').value.trim();
+
+  if (!phone) {
+    setObStatus('Enter your phone number first.');
+    return;
+  }
+
+  if (tmSpinning) stopMachine();
+
+  const btn = document.getElementById('btnCallPhone');
+  btn.textContent = 'Calling...';
+  btn.disabled = true;
+  setObStatus(`Calling ${phone}…`);
+
+  try {
+    const res = await fetch('/api/call-outbound', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, channel, time_horizon: timeHorizon, force_onboarding: true }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || `Server error ${res.status}`);
+    }
+
+    setObStatus(`Your phone should ring shortly. Pick up — it's Recall.`);
+    btn.textContent = '✓ Call initiated';
+
+    // Auto-reset after 10s so they can call again if needed
+    setTimeout(() => {
+      btn.textContent = 'Call my phone';
+      btn.disabled = false;
+      setObStatus('');
+    }, 10000);
+
+  } catch (err) {
+    console.error('Outbound call failed:', err);
+    setObStatus(`Failed: ${err.message}`);
+    btn.textContent = 'Call my phone';
+    btn.disabled = false;
+  }
+}
+
+function setObStatus(msg) {
+  document.getElementById('obConnecting').textContent = msg;
+}
+
+// ═══════════════════════════════════════════════════════
+// CALL CARD TIMER
+// ═══════════════════════════════════════════════════════
+let t = 8 * 60 + 12;
+const mEl = document.getElementById('minutes');
+const sEl = document.getElementById('seconds');
+setInterval(() => {
+  t++;
+  mEl.textContent = String(Math.floor(t / 60)).padStart(2, '0');
+  sEl.textContent = String(t % 60).padStart(2, '0');
+}, 1000);
+
+
+// ═══════════════════════════════════════════════════════
+// CHANNEL PILLS
+// ═══════════════════════════════════════════════════════
+function selectPill(groupId, el) {
+  document.querySelectorAll(`#${groupId} .pill`).forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function getSelected(groupId) {
+  const a = document.querySelector(`#${groupId} .pill.active`);
+  return a ? a.dataset.value : null;
+}
+
+
+// ═══════════════════════════════════════════════════════
+// DECLINE / ANSWER
+// ═══════════════════════════════════════════════════════
+function handleDecline() {
+  const card = document.getElementById('callCard');
+  card.style.transition = 'opacity 0.35s, transform 0.35s';
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(6px)';
+  setTimeout(() => {
+    card.innerHTML = `<div style="padding:1rem 0;font-size:0.7rem;color:var(--muted);text-align:center;letter-spacing:0.04em;">Call ended.</div>`;
+    card.style.padding = '1rem 1.75rem';
+    card.style.opacity = '1';
+    card.style.transform = 'none';
+  }, 350);
+}
+
+async function handleAnswer() {
+  const channel     = getSelected('channelGroup') || 'life';
+  const lockedYear  = tmLockedYear || currentYear();
+  const timeHorizon = lockedYear - NOW;
+  const phone       = document.getElementById('phoneInput').value.trim();
+
+  const card = document.getElementById('callCard');
+  card.classList.add('answered');
+  document.getElementById('connectingMsg').classList.add('visible');
+
+  // Stop time machine if still spinning
+  if (tmSpinning) stopMachine();
+
+  try {
+    const res = await fetch('/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transport: 'webrtc',
+        body: { channel, time_horizon: timeHorizon, phone: phone || null },
+      }),
+    });
+
+    if (!res.ok) throw new Error(`/start returned ${res.status}`);
+    const data = await res.json();
+    window.location.href = `/client/?session_id=${data.sessionId}`;
+
+  } catch (err) {
+    console.error('Call failed:', err);
+    document.getElementById('connectingMsg').textContent = 'Connection failed — try again.';
+    card.classList.remove('answered');
+  }
+}
+</script>
+</body>
+</html>

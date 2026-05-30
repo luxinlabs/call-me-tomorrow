@@ -1,0 +1,21 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+server/.venv/
+
+# Environment and secret config
+.env
+server/.env
+*.env
+*.env.local
+
+# Local databases and embeddings
+server/calls.db
+server/chroma_db/
+
+# OS cruft
+.DS_Store

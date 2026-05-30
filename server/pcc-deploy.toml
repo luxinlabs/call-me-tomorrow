@@ -1,0 +1,11 @@
+[service]
+name = "call-me-tomorrow"
+image_name = "call-me-tomorrow"
+
+[build]
+context = "."
+dockerfile = "Dockerfile"
+
+[runtime]
+cpu = 2
+memory = "4Gi"

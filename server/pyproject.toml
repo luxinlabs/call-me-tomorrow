@@ -1,0 +1,28 @@
+[project]
+name = "call-me-tomorrow"
+version = "0.1.0"
+description = "Voice AI scheduler — call in, get called back. Learns from Cekura evaluation."
+requires-python = ">=3.11"
+dependencies = [
+    # Pipecat — no silero on macOS 13 (onnxruntime 1.24+ requires macOS 14)
+    "pipecat-ai[gradium,openai,runner,webrtc,websocket]>=1.3.0",
+    "pipecatcloud>=0.7.1",
+    # Telephony (inbound via Twilio only — no outbound scheduling)
+    "twilio>=9.0.0",
+    # Anthropic (for the Cekura auto-improvement feedback loop)
+    "anthropic>=0.49.0",
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "aiohttp>=3.9.0",
+    "loguru>=0.7.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.11,<1",
+]
+
+[tool.ruff]
+line-length = 100
+[tool.ruff.lint]
+select = ["I", "UP"]
