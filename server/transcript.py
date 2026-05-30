@@ -23,6 +23,7 @@ from pipecat.frames.frames import (
     LLMFullResponseEndFrame,
     LLMFullResponseStartFrame,
     LLMTextFrame,
+    TranscriptionFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
@@ -40,19 +41,40 @@ class Turn:
     ts: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
+# ── User-speech FrameProcessor (placed before user_agg) ─────────────────────
+
+class _UserTurnLogger(FrameProcessor):
+    """Captures TranscriptionFrame for live SSE streaming.
+    Place BEFORE user_agg so it always sees raw STT output.
+    """
+
+    def __init__(self, on_turn=None):
+        super().__init__()
+        self._on_turn = on_turn
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+        if isinstance(frame, TranscriptionFrame) and frame.text.strip():
+            if self._on_turn:
+                self._on_turn("user", "You", frame.text.strip())
+        await self.push_frame(frame, direction)
+
+
 # ── Bot-speech FrameProcessor (placed after LLM in pipeline) ─────────────────
 
 class _BotTurnLogger(FrameProcessor):
     """Captures LLMTextFrame chunks grouped by LLMFullResponseStart/End markers.
     Place AFTER the LLM, BEFORE TTS in the pipeline.
+    Optionally calls on_turn(role, speaker, text) for live streaming.
     """
 
-    def __init__(self, turns: list[Turn], bot_name: str = "Recall"):
+    def __init__(self, turns: list[Turn], bot_name: str = "Recall", on_turn=None):
         super().__init__()
         self._turns = turns
         self._bot_name = bot_name
         self._buffer: list[str] = []
         self._active = False
+        self._on_turn = on_turn  # callable(role, speaker, text) for live updates
 
     def set_bot_name(self, name: str):
         self._bot_name = name
@@ -74,6 +96,8 @@ class _BotTurnLogger(FrameProcessor):
                 self._turns.append(
                     Turn(role="assistant", speaker=self._bot_name, text=text)
                 )
+                if self._on_turn:
+                    self._on_turn("assistant", self._bot_name, text)
             self._buffer = []
 
         await self.push_frame(frame, direction)
@@ -139,11 +163,24 @@ class TranscriptLogger:
         ])
 
     At call end, call build(context) to produce the full ordered transcript.
+    Pass session_key to enable live SSE streaming via _push_live_turn.
     """
 
-    def __init__(self, bot_name: str = "Recall"):
+    def __init__(self, bot_name: str = "Recall", session_key: str | None = None):
         self._bot_turns: list[Turn] = []
-        self.bot_logger = _BotTurnLogger(self._bot_turns, bot_name)
+        self._session_key = session_key
+
+        on_turn = None
+        if session_key:
+            try:
+                from bot import _push_live_turn
+                def on_turn(role, speaker, text):
+                    _push_live_turn(session_key, role, speaker, text)
+            except ImportError:
+                pass
+
+        self.user_logger = _UserTurnLogger(on_turn=on_turn)
+        self.bot_logger = _BotTurnLogger(self._bot_turns, bot_name, on_turn=on_turn)
 
     def switch_bot_name(self, name: str):
         """Call when Recall hands off to Future Me."""

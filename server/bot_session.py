@@ -8,15 +8,16 @@ from pipecat.frames.frames import EndTaskFrame, FunctionCallResultProperties, LL
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
+from pipecat.turns.user_turn_strategies import FilterIncompleteUserTurnStrategies
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.gradium.tts import GradiumTTSService
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.transports.base_transport import BaseTransport
-from pipecat.turns.user_turn_strategies import FilterIncompleteUserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
 
 from action_plan import ActionPlan, format_plan_for_speech
@@ -45,6 +46,7 @@ async def run_session(
     world_context: str = "",
     audio_in_sample_rate: int = 16000,
     audio_out_sample_rate: int = 24000,
+    session_key: str | None = None,
 ) -> None:
     channel = get_channel(channel_id)
     user = get_user_by_phone(phone) if phone else None
@@ -58,7 +60,7 @@ async def run_session(
     intake_answers: dict[str, str] = {}
     current_archetype: str = ""
     session_id: int | None = None
-    transcript_logger = TranscriptLogger(bot_name="Recall")
+    transcript_logger = TranscriptLogger(bot_name="Recall", session_key=session_key)
 
     # Pre-fetch pending action items for check-in
     pending_actions = get_pending_action_items(int(user_id) if user_id != "anon" else -1, channel_id)
@@ -250,6 +252,7 @@ async def run_session(
     user_agg, assistant_agg = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
             user_turn_strategies=FilterIncompleteUserTurnStrategies(),
         ),
     )
@@ -257,6 +260,7 @@ async def run_session(
     pipeline = Pipeline([
         transport.input(),
         stt,
+        transcript_logger.user_logger,   # before user_agg — captures TranscriptionFrame
         user_agg,
         llm,
         transcript_logger.bot_logger,   # after LLM — captures LLMTextFrame

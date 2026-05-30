@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Call Me Tomorrow · Tarot Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --void:#050507; --oracle:#c8b09a; --parchment:#f4efe6; --dusk:#111119;
+      --border:rgba(200,176,154,.2); --muted:rgba(244,239,230,.55);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:radial-gradient(circle at top,#161624,#050507 65%);color:var(--parchment);font-family:'DM Mono',monospace;min-height:100vh;padding:3vw;display:flex;flex-direction:column;gap:2rem}
+    header{display:flex;flex-direction:column;gap:.35rem}
+    .eyebrow{font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+    h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:3rem;line-height:1}
+    p.lede{max-width:640px;font-size:.9rem;line-height:1.7;color:var(--muted)}
+
+    .workspace{display:grid;grid-template-columns:1.7fr 1fr;gap:2rem;align-items:start}
+    .deck{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem}
+    .card{
+      border:1px solid var(--border);border-radius:16px;padding:1rem;
+      min-height:170px;display:flex;flex-direction:column;gap:.6rem;cursor:pointer;
+      background:rgba(255,255,255,.01);transition:transform .15s,border-color .15s;
+    }
+    .card:hover{transform:translateY(-4px);border-color:var(--oracle)}
+    .card.active{border-color:var(--oracle);box-shadow:0 0 20px rgba(200,176,154,.25)}
+    .card label{font-size:.55rem;letter-spacing:.25em;text-transform:uppercase;color:var(--muted)}
+    .card-title{font-family:'Cormorant Garamond',serif;font-size:1.3rem}
+    .card-signals{font-size:.68rem;line-height:1.4;color:var(--muted)}
+
+    .reading-panel{border:1px solid var(--border);border-radius:20px;padding:1.75rem;display:flex;flex-direction:column;gap:1.25rem;background:rgba(255,255,255,.02)}
+    .reading-panel h2{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300}
+    textarea{width:100%;min-height:60px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--parchment);padding:.75rem;font-family:'DM Mono',monospace;font-size:.8rem}
+    textarea:focus{outline:none;border-color:var(--oracle)}
+    button{align-self:flex-start;padding:.6rem 1.5rem;border-radius:999px;border:1px solid var(--oracle);background:transparent;color:var(--parchment);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+    .reading-output{font-size:.9rem;line-height:1.7;color:var(--parchment);min-height:120px}
+    .reading-meta{font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+    .empty{color:rgba(244,239,230,.4);font-size:.8rem}
+
+    @media (max-width:900px){
+      .workspace{grid-template-columns:1fr;}
+      .deck{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="eyebrow">CALL · ME · TOMORROW</span>
+    <h1>Tarot Studio</h1>
+    <p class="lede">Pick a Major Arcana card to anchor a micro-session. Every pull keeps the metaphor visible to both of us, and the reading gives Future Me a grounded tone to step into.</p>
+  </header>
+
+  <div class="workspace">
+    <section>
+      <div class="eyebrow" style="margin-bottom:.7rem;display:block">Choose your card</div>
+      <div class="deck" id="deck"></div>
+    </section>
+
+    <section class="reading-panel">
+      <div>
+        <div class="reading-meta">Focus prompt (optional)</div>
+        <textarea id="focus" placeholder="What are you holding in mind right now?"></textarea>
+      </div>
+      <button id="drawBtn">Reveal reading</button>
+      <div class="reading-meta" id="readingTitle">No card selected</div>
+      <div class="reading-output empty" id="readingBody">Select a card from the left to see its tone, metaphor, and guidance.</div>
+    </section>
+  </div>
+
+  <script>
+    const deckEl = document.getElementById('deck');
+    const readingTitle = document.getElementById('readingTitle');
+    const readingBody = document.getElementById('readingBody');
+    const focusInput = document.getElementById('focus');
+    const drawBtn = document.getElementById('drawBtn');
+
+    let cards = [];
+    let selected = null;
+
+    async function loadCards(){
+      const res = await fetch('/api/tarot/cards');
+      const data = await res.json();
+      cards = data.cards || [];
+      renderDeck();
+    }
+
+    function renderDeck(){
+      deckEl.innerHTML = '';
+      cards.forEach(card => {
+        const div = document.createElement('div');
+        div.className = 'card' + (card.name === selected ? ' active' : '');
+        div.innerHTML = `
+          <label>${String(card.number).padStart(2,'0')}</label>
+          <div class="card-title">${card.name}</div>
+          <div class="card-signals">${card.signals.slice(0,3).join(', ')}</div>`;
+        div.onclick = () => {
+          selected = card.name;
+          renderDeck();
+          fetchReading();
+        };
+        deckEl.appendChild(div);
+      });
+    }
+
+    async function fetchReading(){
+      if(!selected){
+        readingTitle.textContent = 'No card selected';
+        readingBody.textContent = 'Select a card to view a reading.';
+        readingBody.classList.add('empty');
+        return;
+      }
+      readingBody.textContent = 'Drawing insight...';
+      readingBody.classList.remove('empty');
+      const res = await fetch('/api/tarot/read',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({card:selected, focus:focusInput.value})
+      });
+      if(!res.ok){
+        readingTitle.textContent = 'Error';
+        readingBody.textContent = 'Could not fetch reading.';
+        return;
+      }
+      const data = await res.json();
+      readingTitle.textContent = `${data.card} · Major Arcana ${data.number}`;
+      readingBody.textContent = data.reading;
+    }
+
+    drawBtn.addEventListener('click', fetchReading);
+    loadCards();
+  </script>
+</body>
+</html>

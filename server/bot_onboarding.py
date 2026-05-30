@@ -21,15 +21,16 @@ from pipecat.frames.frames import EndTaskFrame, FunctionCallResultProperties, LL
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
+from pipecat.turns.user_turn_strategies import FilterIncompleteUserTurnStrategies
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.gradium.tts import GradiumTTSService
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.transports.base_transport import BaseTransport
-from pipecat.turns.user_turn_strategies import FilterIncompleteUserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
 
 from channels import Channel, get_channel
@@ -117,11 +118,12 @@ async def run_onboarding(
     world_context: str = "",
     audio_in_sample_rate: int = 16000,
     audio_out_sample_rate: int = 24000,
+    session_key: str | None = None,
 ) -> None:
     channel = get_channel(channel_id)
     logger.info(f"Onboarding: channel={channel_id} horizon={time_horizon} phone={phone}")
 
-    transcript_logger = TranscriptLogger(bot_name="Recall")
+    transcript_logger = TranscriptLogger(bot_name="Recall", session_key=session_key)
 
     async def save_profile(
         params: FunctionCallParams,
@@ -275,6 +277,7 @@ async def run_onboarding(
     user_agg, assistant_agg = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
             user_turn_strategies=FilterIncompleteUserTurnStrategies(),
         ),
     )
@@ -282,6 +285,7 @@ async def run_onboarding(
     pipeline = Pipeline([
         transport.input(),
         stt,
+        transcript_logger.user_logger,   # before user_agg — captures TranscriptionFrame
         user_agg,
         llm,
         transcript_logger.bot_logger,   # after LLM — captures LLMTextFrame

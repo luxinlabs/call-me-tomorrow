@@ -14,7 +14,7 @@ import os
 import uuid
 
 from dotenv import load_dotenv
-from fastapi import Request, WebSocket
+from fastapi import HTTPException, Request, WebSocket
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -31,6 +31,7 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
 
+from archetype import build_tarot_reading, list_tarot_cards
 from bot_onboarding import run_onboarding
 from bot_session import run_session
 from cekura_eval import run_feedback_loop
@@ -91,6 +92,92 @@ async def trigger_feedback_loop():
 # Stores pending call config until Twilio's WebSocket connects.
 _pending_calls: dict[str, dict] = {}
 
+# Live transcript store: session_id → list of {role, speaker, text}
+# Written by bot pipeline, read by SSE endpoint.
+_live_transcripts: dict[str, list[dict]] = {}
+
+
+async def _get_public_url() -> str:
+    """Return PUBLIC_URL from env, or auto-detect from a running ngrok tunnel."""
+    url = os.getenv("PUBLIC_URL", "").rstrip("/")
+    if url:
+        return url
+    try:
+        import aiohttp as _http
+        async with _http.ClientSession() as s:
+            async with s.get(
+                "http://localhost:4040/api/tunnels",
+                timeout=_http.ClientTimeout(total=2),
+            ) as r:
+                if r.status == 200:
+                    data = await r.json()
+                    for t in data.get("tunnels", []):
+                        if t.get("proto") == "https":
+                            detected = t["public_url"].rstrip("/")
+                            logger.info(f"Auto-detected ngrok URL: {detected}")
+                            return detected
+    except Exception:
+        pass
+    return ""
+
+
+def _push_live_turn(session_key: str, role: str, speaker: str, text: str) -> None:
+    if session_key not in _live_transcripts:
+        _live_transcripts[session_key] = []
+    _live_transcripts[session_key].append({"role": role, "speaker": speaker, "text": text})
+
+
+@app.get("/call")
+async def call_page():
+    """Custom call page with live dual-sided transcript."""
+    return FileResponse(os.path.join(_STATIC, "call.html"))
+
+
+@app.get("/tarot")
+async def tarot_page():
+    """Lightweight Tarot session UI for quick archetype pulls."""
+    return FileResponse(os.path.join(_STATIC, "tarot.html"))
+
+
+@app.get("/api/tarot/cards")
+async def tarot_cards():
+    """List available Tarot archetypes."""
+    return {"cards": list_tarot_cards()}
+
+
+@app.post("/api/tarot/read")
+async def tarot_read(payload: dict):
+    card = (payload or {}).get("card")
+    focus = (payload or {}).get("focus")
+    if not card:
+        raise HTTPException(status_code=400, detail="card is required")
+    try:
+        reading = build_tarot_reading(card, focus)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="card not found") from None
+    return reading
+
+
+@app.get("/transcript-stream/{session_key}")
+async def transcript_stream(session_key: str):
+    """Server-Sent Events stream of live transcript turns."""
+    import asyncio
+    import json as _json
+    from fastapi.responses import StreamingResponse
+
+    async def event_gen():
+        sent = 0
+        while True:
+            turns = _live_transcripts.get(session_key, [])
+            while sent < len(turns):
+                data = _json.dumps(turns[sent])
+                yield f"data: {data}\n\n"
+                sent += 1
+            await asyncio.sleep(0.4)
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
 
 @app.post("/api/call-outbound")
 async def call_outbound(request: Request):
@@ -104,9 +191,12 @@ async def call_outbound(request: Request):
     if not phone:
         return JSONResponse({"error": "phone number required"}, status_code=400)
 
-    public_url = os.getenv("PUBLIC_URL", "").rstrip("/")
+    public_url = await _get_public_url()
     if not public_url:
-        return JSONResponse({"error": "PUBLIC_URL not configured on server"}, status_code=500)
+        return JSONResponse(
+            {"error": "No public URL found. Run ngrok (see instructions) or set PUBLIC_URL in .env"},
+            status_code=500,
+        )
 
     token = str(uuid.uuid4())
     _pending_calls[token] = {
@@ -140,7 +230,7 @@ async def call_outbound(request: Request):
 @app.get("/outbound-twiml/{token}")
 async def outbound_twiml(token: str):
     """TwiML that connects Twilio's outbound call to our bot WebSocket."""
-    public_url = os.getenv("PUBLIC_URL", "").rstrip("/")
+    public_url = await _get_public_url()
     ws_url = (
         public_url
         .replace("https://", "wss://")
@@ -359,6 +449,8 @@ async def bot(runner_args: RunnerArguments) -> None:
         f"phone={phone} new_user={is_new}"
     )
 
+    session_key = getattr(runner_args, "session_id", None)
+
     # Run pre-call analysis concurrently while setting up transport
     channel = get_channel(channel_id)
     user_role = user.get("role", "") if user else ""
@@ -426,12 +518,12 @@ async def bot(runner_args: RunnerArguments) -> None:
     if is_new:
         await run_onboarding(
             transport, channel_id, time_horizon, phone,
-            world_context=world_context, **transport_overrides
+            world_context=world_context, session_key=session_key, **transport_overrides
         )
     else:
         await run_session(
             transport, channel_id, time_horizon, phone,
-            world_context=world_context, **transport_overrides
+            world_context=world_context, session_key=session_key, **transport_overrides
         )
 
 

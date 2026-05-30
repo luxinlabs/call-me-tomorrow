@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Call Me Tomorrow — Live</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --void:#0a0a0f; --oracle:#c8b09a; --parchment:#e8e4dc;
+      --dusk:#1c1c22;  --answer:#5ab87a; --border:rgba(200,176,154,0.12);
+      --muted:rgba(232,228,220,0.35);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--void);color:var(--parchment);font-family:'DM Mono',monospace;font-weight:300;height:100vh;display:flex;flex-direction:column}
+
+    /* ── Header ── */
+    header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:1.25rem 2rem;border-bottom:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .logo{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:300}
+    .logo em{font-style:italic;color:var(--oracle)}
+    .call-status{display:flex;align-items:center;gap:0.5rem;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase}
+    .status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+    .status-dot.active{background:var(--answer);animation:pulse 2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+    .btn-end{
+      padding:0.45rem 1rem;border-radius:6px;font-family:'DM Mono',monospace;
+      font-size:0.62rem;letter-spacing:0.06em;cursor:pointer;
+      background:transparent;border:1px solid rgba(232,228,220,0.2);
+      color:var(--muted);transition:all 0.15s;
+    }
+    .btn-end:hover{border-color:rgba(232,228,220,0.4);color:var(--parchment)}
+    .btn-end.ending{border-color:rgba(220,80,80,0.4);color:rgba(220,80,80,0.7)}
+
+    /* ── Main layout ── */
+    .main{display:flex;flex:1;overflow:hidden}
+
+    /* ── Audio panel ── */
+    .audio-panel{
+      width:260px;flex-shrink:0;
+      border-right:1px solid var(--border);
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      gap:1.5rem;padding:2rem;
+    }
+    .caller-label{font-size:0.58rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--oracle);opacity:0.5}
+    .caller-name{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:2rem;font-weight:300;line-height:1}
+    .waveform{display:flex;align-items:center;gap:3px;height:36px}
+    .wave-bar{width:3px;border-radius:2px;background:var(--oracle);opacity:0.4;transition:height 0.08s ease}
+    .waveform.speaking .wave-bar{animation:wave 0.6s ease-in-out infinite}
+    .wave-bar:nth-child(1){animation-delay:0s}
+    .wave-bar:nth-child(2){animation-delay:0.1s}
+    .wave-bar:nth-child(3){animation-delay:0.2s}
+    .wave-bar:nth-child(4){animation-delay:0.15s}
+    .wave-bar:nth-child(5){animation-delay:0.05s}
+    @keyframes wave{
+      0%,100%{height:4px;opacity:0.3}
+      50%{height:28px;opacity:0.9}
+    }
+    .timer{font-size:1.4rem;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+    .timer-sub{font-size:0.58rem;color:var(--muted);letter-spacing:0.06em}
+
+    /* Hidden audio element */
+    #remoteAudio{display:none}
+
+    /* ── Transcript panel ── */
+    .transcript-panel{
+      flex:1;display:flex;flex-direction:column;overflow:hidden;
+    }
+    .transcript-header{
+      padding:1rem 1.75rem 0.75rem;
+      border-bottom:1px solid var(--border);
+      font-size:0.55rem;letter-spacing:0.18em;text-transform:uppercase;
+      color:var(--oracle);opacity:0.45;flex-shrink:0;
+    }
+    .transcript-body{
+      flex:1;overflow-y:auto;padding:1.5rem 1.75rem;
+      display:flex;flex-direction:column;gap:1.25rem;
+      scroll-behavior:smooth;
+    }
+    .transcript-body::-webkit-scrollbar{width:4px}
+    .transcript-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+    /* ── Turns ── */
+    .turn{display:flex;flex-direction:column;gap:0.2rem;max-width:85%}
+    .turn.user{align-self:flex-end;align-items:flex-end}
+    .turn.assistant{align-self:flex-start}
+
+    .turn-speaker{
+      font-size:0.52rem;letter-spacing:0.12em;text-transform:uppercase;opacity:0.4;
+    }
+    .turn.user .turn-speaker{color:var(--parchment)}
+    .turn.assistant .turn-speaker{color:var(--oracle)}
+
+    .turn-bubble{
+      padding:0.65rem 0.9rem;border-radius:12px;
+      font-size:0.8rem;line-height:1.6;
+    }
+    .turn.user .turn-bubble{
+      background:rgba(232,228,220,0.07);
+      border:1px solid rgba(232,228,220,0.1);
+      color:var(--parchment);
+      border-radius:12px 12px 2px 12px;
+    }
+    .turn.assistant .turn-bubble{
+      font-family:'Cormorant Garamond',serif;font-style:italic;
+      font-size:0.97rem;line-height:1.55;
+      color:var(--parchment);opacity:0.9;
+      border-left:2px solid rgba(200,176,154,0.25);
+      padding-left:1rem;border-radius:0;background:transparent;
+      border-right:none;border-top:none;border-bottom:none;
+    }
+
+    /* ── Thinking indicator ── */
+    .thinking{
+      display:none;align-self:flex-start;
+      padding:0.5rem 0.9rem;
+      font-size:0.65rem;color:var(--oracle);opacity:0.5;
+      letter-spacing:0.06em;
+    }
+    .thinking.visible{display:flex;gap:0.3rem;align-items:center}
+    .think-dot{width:4px;height:4px;border-radius:50%;background:var(--oracle);opacity:0.5}
+    .think-dot:nth-child(1){animation:thinkPulse 1.2s ease-in-out infinite 0s}
+    .think-dot:nth-child(2){animation:thinkPulse 1.2s ease-in-out infinite 0.2s}
+    .think-dot:nth-child(3){animation:thinkPulse 1.2s ease-in-out infinite 0.4s}
+    @keyframes thinkPulse{0%,100%{opacity:0.2;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}
+
+    /* ── Empty state ── */
+    .empty-state{
+      flex:1;display:flex;align-items:center;justify-content:center;
+      font-size:0.7rem;color:var(--muted);letter-spacing:0.06em;
+    }
+
+    /* ── Connecting overlay ── */
+    .overlay{
+      position:fixed;inset:0;background:var(--void);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:1rem;z-index:100;
+    }
+    .overlay.hidden{display:none}
+    .overlay-title{font-family:'Cormorant Garamond',serif;font-size:2rem;font-style:italic}
+    .overlay-title em{color:var(--oracle)}
+    .overlay-sub{font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)}
+    .overlay-spinner{width:24px;height:24px;border:1.5px solid var(--border);border-top-color:var(--oracle);border-radius:50%;animation:spin 0.8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<!-- Connecting overlay -->
+<div class="overlay" id="overlay">
+  <div class="overlay-title">Call <em>Me</em> Tomorrow.</div>
+  <div class="overlay-spinner"></div>
+  <div class="overlay-sub" id="overlayStatus">Connecting...</div>
+</div>
+
+<header>
+  <div class="logo">Call <em>Me</em> Tomorrow.</div>
+  <div class="call-status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Connecting</span>
+  </div>
+  <button class="btn-end" id="btnEnd" onclick="endCall()">End call</button>
+</header>
+
+<div class="main">
+  <!-- Audio panel -->
+  <div class="audio-panel">
+    <div>
+      <div class="caller-label">Speaking with</div>
+      <div class="caller-name" id="callerName">Recall</div>
+    </div>
+    <div class="waveform" id="waveform">
+      <div class="wave-bar" style="height:8px"></div>
+      <div class="wave-bar" style="height:16px"></div>
+      <div class="wave-bar" style="height:24px"></div>
+      <div class="wave-bar" style="height:16px"></div>
+      <div class="wave-bar" style="height:8px"></div>
+    </div>
+    <div>
+      <div class="timer" id="timer">00:00</div>
+      <div class="timer-sub">elapsed</div>
+    </div>
+    <audio id="remoteAudio" autoplay playsinline></audio>
+  </div>
+
+  <!-- Transcript panel -->
+  <div class="transcript-panel">
+    <div class="transcript-header">Live transcript</div>
+    <div class="transcript-body" id="transcriptBody">
+      <div class="empty-state" id="emptyState">Waiting for the call to begin...</div>
+    </div>
+    <div class="thinking" id="thinking">
+      <span class="think-dot"></span>
+      <span class="think-dot"></span>
+      <span class="think-dot"></span>
+    </div>
+  </div>
+</div>
+
+<script src="/static/call.js"></script>
+</body>
+</html>

@@ -1,1075 +1,843 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Call Me Tomorrow.</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ─── Reset & tokens ──────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --void:#0a0a0f;
+  --oracle:#c8b09a;
+  --parchment:#e8e4dc;
+  --dusk:#161619;
+  --dusk2:#1e1e24;
+  --answer:#5ab87a;
+  --muted:rgba(232,228,220,.32);
+  --border:rgba(200,176,154,.10);
+  --border-hi:rgba(200,176,154,.28);
+  --slot:72px;   /* height of one year slot in reel */
+}
+html{scroll-behavior:smooth}
+body{background:var(--void);color:var(--parchment);font-family:'DM Mono',monospace;font-weight:300;overflow-x:hidden}
 
-    :root {
-      --void:      #0a0a0f;
-      --oracle:    #c8b09a;
-      --parchment: #e8e4dc;
-      --dusk:      #1c1c22;
-      --answer:    #5ab87a;
-      --muted:     rgba(232,228,220,0.35);
-      --border:    rgba(200,176,154,0.12);
-    }
+/* ─── Layout ──────────────────────────────────────────────────────────────── */
+.wrap{max-width:640px;margin:0 auto;padding:0 1.75rem}
 
-    html { scroll-behavior: smooth; }
+/* ─── Nav ─────────────────────────────────────────────────────────────────── */
+nav{padding:2.5rem 0 0;display:flex;align-items:center;gap:.75rem}
+.clock{width:38px;height:38px;opacity:.55;transition:opacity .2s}
+.clock:hover{opacity:.85}
 
-    body {
-      background: var(--void);
-      color: var(--parchment);
-      font-family: 'DM Mono', monospace;
-      font-weight: 300;
-      min-height: 100vh;
-    }
+/* ─── Hero ────────────────────────────────────────────────────────────────── */
+.hero{padding:5rem 0 3rem}
+h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(3.6rem,11vw,6.8rem);
+  font-weight:300;line-height:.88;letter-spacing:-.02em;
+}
+h1 em{font-style:italic;color:var(--oracle)}
+.tagline{
+  margin-top:1.3rem;font-size:.58rem;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:var(--oracle);opacity:.65;
+}
 
-    .page { max-width: 680px; margin: 0 auto; padding: 0 2rem; }
+/* ─── Divider ─────────────────────────────────────────────────────────────── */
+.rule{width:100%;height:1px;background:var(--border);margin:2.75rem 0}
 
-    /* ── Nav ── */
-    nav { padding: 2.5rem 0 0; }
-    .clock-icon { width: 42px; height: 42px; opacity: 0.65; }
+/* ─── Body copy ───────────────────────────────────────────────────────────── */
+.lede{font-size:.78rem;line-height:1.8;opacity:.68;max-width:400px}
 
-    /* ── Hero ── */
-    .hero { padding: 5rem 0 3rem; }
-    .headline {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(3.8rem, 11vw, 7rem);
-      font-weight: 300;
-      line-height: 0.9;
-      letter-spacing: -0.02em;
-    }
-    .headline em { font-style: italic; color: var(--oracle); }
-    .tagline {
-      margin-top: 1.4rem;
-      font-size: 0.6rem;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--oracle);
-      opacity: 0.7;
-    }
+/* ─── Step label ──────────────────────────────────────────────────────────── */
+.step-label{
+  display:flex;align-items:center;gap:.7rem;
+  margin-bottom:1.1rem;margin-top:2.75rem;
+}
+.step-num{
+  font-size:.52rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--oracle);opacity:.45;
+}
+.step-title{font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--oracle);opacity:.45}
 
-    .divider { width: 100%; height: 1px; background: var(--border); margin: 2.5rem 0; }
+/* ─── Channel cards ───────────────────────────────────────────────────────── */
+.channel-cards{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
 
-    .body-copy {
-      font-size: 0.8rem;
-      line-height: 1.8;
-      opacity: 0.75;
-      max-width: 420px;
-    }
+.ch-card{
+  border:1px solid var(--border);border-radius:14px;
+  padding:1.4rem 1.25rem 1.3rem;cursor:pointer;
+  transition:border-color .2s,background .2s,transform .15s;
+  user-select:none;-webkit-tap-highlight-color:transparent;
+  position:relative;overflow:hidden;
+}
+.ch-card::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 60% 40%,rgba(200,176,154,.06),transparent 70%);
+  opacity:0;transition:opacity .25s;pointer-events:none;
+}
+.ch-card:hover{border-color:var(--border-hi);transform:translateY(-1px)}
+.ch-card:hover::after{opacity:1}
+.ch-card.active{border-color:var(--oracle);background:rgba(200,176,154,.04)}
+.ch-card.active::after{opacity:1}
 
-    /* ── Channel pills ── */
-    .selectors { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1.4rem; }
+.ch-icon{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:1.55rem;font-weight:300;color:var(--oracle);
+  margin-bottom:.55rem;line-height:1;opacity:.75;
+}
+.ch-name{font-size:.72rem;font-weight:400;letter-spacing:.04em;margin-bottom:.3rem}
+.ch-desc{font-size:.62rem;line-height:1.55;color:var(--muted)}
 
-    .selector-group { display: flex; flex-direction: column; gap: 0.45rem; }
+/* ─── Time machine reel ───────────────────────────────────────────────────── */
+.reel-wrap{
+  display:flex;align-items:center;gap:1.5rem;
+  margin-top:.25rem;
+}
+.reel-container{
+  position:relative;width:180px;
+  height:calc(var(--slot)*3);  /* shows 3 slots */
+  overflow:hidden;
+  cursor:ns-resize;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+/* top/bottom fade */
+.reel-container::before,.reel-container::after{
+  content:'';position:absolute;left:0;right:0;height:calc(var(--slot)*.85);
+  z-index:2;pointer-events:none;
+}
+.reel-container::before{top:0;background:linear-gradient(to bottom,var(--void),transparent)}
+.reel-container::after{bottom:0;background:linear-gradient(to top,var(--void),transparent)}
 
-    .selector-label {
-      font-size: 0.55rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--oracle);
-      opacity: 0.5;
-    }
+/* selection highlight */
+.reel-highlight{
+  position:absolute;left:0;right:0;
+  top:calc(var(--slot)*1);height:var(--slot);
+  border-top:1px solid rgba(200,176,154,.18);
+  border-bottom:1px solid rgba(200,176,154,.18);
+  pointer-events:none;z-index:1;
+  background:rgba(200,176,154,.03);
+}
 
-    .pill-group { display: flex; gap: 0.4rem; }
+.reel-track{
+  position:absolute;left:0;right:0;
+  will-change:transform;
+  transition:transform .0s;  /* JS controls this */
+}
+.reel-slot{
+  height:var(--slot);
+  display:flex;align-items:center;padding-left:.15rem;
+}
+.reel-year{
+  font-size:2.6rem;font-weight:300;letter-spacing:-.02em;
+  color:var(--parchment);opacity:.18;
+  font-variant-numeric:tabular-nums;
+  transition:opacity .12s,font-size .12s;
+  pointer-events:none;line-height:1;
+}
+.reel-slot.selected .reel-year{opacity:1;font-size:2.8rem}
+.reel-slot.near .reel-year{opacity:.5}
 
-    .pill {
-      padding: 0.45rem 1.1rem;
-      border-radius: 100px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.68rem;
-      font-weight: 300;
-      letter-spacing: 0.04em;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--muted);
-      transition: all 0.15s ease;
-    }
-    .pill:hover { border-color: rgba(200,176,154,0.3); color: var(--parchment); }
-    .pill.active { border-color: var(--oracle); color: var(--oracle); background: rgba(200,176,154,0.07); }
+.reel-side{flex:1}
+.reel-horizon{
+  font-size:.58rem;letter-spacing:.08em;color:var(--oracle);opacity:.65;
+  margin-bottom:.25rem;
+}
+.reel-year-label{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:1.15rem;font-weight:300;color:var(--parchment);
+  line-height:1.2;
+}
+.reel-hint{
+  font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-top:.85rem;
+  display:flex;align-items:center;gap:.4rem;
+}
+.reel-hint svg{opacity:.4}
 
-    /* ════════════════════════════════════════
-       TIME MACHINE
-    ════════════════════════════════════════ */
-    .time-machine {
-      position: relative;
-      width: 100%;
-      max-width: 340px;
-      background: var(--dusk);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.5rem 1.75rem 1.4rem;
-      cursor: pointer;
-      user-select: none;
-      overflow: hidden;
-      transition: border-color 0.3s, box-shadow 0.3s;
-    }
+/* ─── Phone row ───────────────────────────────────────────────────────────── */
+.phone-row{display:flex;gap:.55rem;align-items:stretch;margin-top:.25rem}
 
-    .time-machine:hover { border-color: rgba(200,176,154,0.25); }
+.phone-input{
+  flex:1;background:transparent;
+  border:1px solid var(--border);border-radius:10px;
+  padding:.7rem 1rem;
+  font-family:'DM Mono',monospace;font-size:.72rem;font-weight:300;
+  color:var(--parchment);outline:none;
+  transition:border-color .15s;
+  min-width:0;
+}
+.phone-input::placeholder{color:var(--muted)}
+.phone-input:focus{border-color:var(--border-hi)}
 
-    .time-machine.locked {
-      border-color: rgba(90,184,122,0.35);
-      box-shadow: 0 0 0 1px rgba(90,184,122,0.1);
-      cursor: default;
-    }
+.btn-call-phone{
+  padding:.7rem 1.1rem;border-radius:10px;
+  font-family:'DM Mono',monospace;font-size:.66rem;font-weight:300;
+  letter-spacing:.04em;cursor:pointer;white-space:nowrap;
+  border:1px solid var(--answer);color:var(--answer);
+  background:transparent;
+  transition:all .15s;display:none;
+}
+.btn-call-phone:hover{background:rgba(90,184,122,.08);transform:translateY(-1px)}
+.btn-call-phone:disabled{opacity:.5;cursor:default;transform:none}
 
-    /* Scanline glow that moves up during spin */
-    .tm-scanline {
-      position: absolute;
-      left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--oracle), transparent);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s;
-    }
-    .time-machine.spinning .tm-scanline {
-      opacity: 0.4;
-      animation: scanMove 1.8s linear infinite;
-    }
-    @keyframes scanMove {
-      0%   { top: 100%; }
-      100% { top: -10%; }
-    }
+.call-status-msg{
+  font-size:.6rem;letter-spacing:.08em;color:var(--oracle);
+  opacity:.6;margin-top:.6rem;min-height:.9rem;
+}
 
-    /* Top label */
-    .tm-label {
-      font-size: 0.55rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--oracle);
-      opacity: 0.45;
-      margin-bottom: 0.9rem;
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-    }
-    .tm-dot {
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: var(--oracle);
-      opacity: 0.6;
-    }
-    .time-machine.spinning .tm-dot { animation: tmPulse 0.9s ease-in-out infinite; }
-    .time-machine.locked .tm-dot { background: var(--answer); opacity: 1; animation: none; }
-    @keyframes tmPulse { 0%,100%{opacity:0.6} 50%{opacity:0.15} }
+/* ─── Or divider ──────────────────────────────────────────────────────────── */
+.or-row{
+  display:flex;align-items:center;gap:1rem;
+  margin:2.75rem 0 0;
+}
+.or-line{flex:1;height:1px;background:var(--border)}
+.or-text{font-size:.52rem;letter-spacing:.18em;text-transform:uppercase;color:var(--oracle);opacity:.3}
 
-    /* Year display window */
-    .tm-window {
-      position: relative;
-      height: 5rem;
-      overflow: hidden;
-    }
+/* ─── Incoming call card ──────────────────────────────────────────────────── */
+.call-section{margin-top:2.25rem}
+.call-card{
+  width:100%;max-width:300px;
+  background:var(--dusk2);
+  border:1px solid var(--border);border-radius:20px;
+  padding:1.65rem 1.65rem 1.4rem;
+  box-shadow:0 24px 64px rgba(0,0,0,.5);
+  transition:border-color .3s,box-shadow .3s,transform .2s;
+}
+.call-card:hover{transform:translateY(-2px);box-shadow:0 32px 80px rgba(0,0,0,.6)}
+.call-card.answered{
+  border-color:rgba(90,184,122,.3);
+  box-shadow:0 32px 80px rgba(0,0,0,.6),0 0 0 1px rgba(90,184,122,.1);
+}
 
-    /* Fade masks at top/bottom of window */
-    .tm-window::before,
-    .tm-window::after {
-      content: '';
-      position: absolute;
-      left: 0; right: 0;
-      height: 1.2rem;
-      z-index: 2;
-      pointer-events: none;
-    }
-    .tm-window::before { top: 0; background: linear-gradient(to bottom, var(--dusk), transparent); }
-    .tm-window::after  { bottom: 0; background: linear-gradient(to top, var(--dusk), transparent); }
+.call-label{
+  display:flex;align-items:center;gap:.45rem;
+  font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:1rem;
+}
+.call-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--answer);
+  animation:callPulse 2s ease-in-out infinite;
+}
+@keyframes callPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
 
-    /* The reel — contains multiple year slots, animates translateY */
-    .tm-reel {
-      position: absolute;
-      width: 100%;
-      will-change: transform;
-    }
+.caller-name{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:2.1rem;font-weight:300;color:var(--parchment);line-height:1;
+  margin-bottom:.25rem;
+}
+.caller-id{font-size:.56rem;letter-spacing:.06em;color:var(--oracle);opacity:.6;margin-bottom:1.4rem}
 
-    .tm-slot {
-      height: 5rem;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-    }
+.call-timer{
+  font-size:2.3rem;font-weight:300;letter-spacing:-.02em;
+  color:var(--parchment);line-height:1;font-variant-numeric:tabular-nums;
+}
+.timer-colon{animation:blink 1s step-start infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.call-date{font-size:.58rem;color:var(--muted);margin-top:.2rem;margin-bottom:1.5rem}
 
-    .tm-year {
-      font-size: 3.4rem;
-      font-weight: 300;
-      letter-spacing: -0.03em;
-      color: var(--parchment);
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-      transition: color 0.2s;
-    }
+.call-actions{display:flex;gap:.6rem}
 
-    .time-machine.locked .tm-year { color: var(--parchment); }
+.btn{
+  flex:1;padding:.6rem 0;border-radius:8px;
+  font-family:'DM Mono',monospace;font-size:.66rem;font-weight:300;
+  letter-spacing:.04em;cursor:pointer;
+  text-align:center;transition:all .15s;
+}
+.btn-decline{
+  background:transparent;color:var(--parchment);
+  border:1px solid rgba(232,228,220,.16);
+}
+.btn-decline:hover{border-color:rgba(232,228,220,.32)}
+.btn-answer{
+  background:var(--answer);color:var(--void);
+  border:1px solid var(--answer);font-weight:400;
+}
+.btn-answer:hover{background:#6dd48e;transform:translateY(-1px);box-shadow:0 6px 20px rgba(90,184,122,.25)}
 
-    /* Sub-line: "X years from now" */
-    .tm-sub {
-      margin-top: 0.5rem;
-      font-size: 0.62rem;
-      color: var(--oracle);
-      opacity: 0.6;
-      letter-spacing: 0.06em;
-      height: 1rem;
-      transition: opacity 0.2s;
-    }
+.call-connecting{
+  font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--oracle);opacity:.65;margin-top:.85rem;min-height:.85rem;
+}
 
-    /* Instruction */
-    .tm-instruction {
-      margin-top: 1.1rem;
-      font-size: 0.58rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      transition: opacity 0.3s, color 0.3s;
-    }
-    .time-machine.spinning .tm-instruction { color: var(--muted); }
-    .time-machine.locked  .tm-instruction { color: var(--answer); opacity: 0.8; }
+/* ─── Onboarding card ─────────────────────────────────────────────────────── */
+.ob-section{margin-top:2.25rem}
 
-    /* Reset link */
-    .tm-reset {
-      display: none;
-      font-size: 0.55rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      text-decoration: none;
-      margin-top: 0.35rem;
-      cursor: pointer;
-      transition: color 0.15s;
-    }
-    .tm-reset:hover { color: var(--oracle); }
-    .time-machine.locked .tm-reset { display: inline-block; }
+.ob-card{
+  border:1px solid var(--border);border-radius:14px;overflow:hidden;
+  max-width:460px;
+}
 
-    /* ── Phone field ── */
-    .phone-row {
-      margin-top: 0.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      max-width: 260px;
-    }
+.ob-header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;
+  padding:1.3rem 1.5rem 1.1rem;cursor:pointer;user-select:none;
+  transition:background .15s;
+}
+.ob-header:hover{background:rgba(200,176,154,.03)}
 
-    .phone-input {
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.6rem 0.85rem;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.72rem;
-      font-weight: 300;
-      color: var(--parchment);
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    .phone-input::placeholder { color: var(--muted); }
-    .phone-input:focus { border-color: rgba(200,176,154,0.35); }
+.ob-badge{font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:var(--oracle);opacity:.45;margin-bottom:.35rem}
+.ob-title{
+  font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.25rem;
+  color:var(--parchment);opacity:.82;line-height:1.2;
+}
+.ob-meta{font-size:.57rem;color:var(--muted);margin-top:.3rem}
+.ob-chevron{font-size:.65rem;color:var(--oracle);opacity:.4;margin-top:.15rem;transition:transform .25s ease;flex-shrink:0}
+.ob-card.open .ob-chevron{transform:rotate(180deg)}
 
-    /* ── Call card ── */
-    .call-section { padding: 3.5rem 0 2.5rem; }
+.ob-body{max-height:0;overflow:hidden;transition:max-height .38s cubic-bezier(.4,0,.2,1)}
+.ob-card.open .ob-body{max-height:700px}
 
-    .call-card {
-      width: 100%;
-      max-width: 310px;
-      background: var(--dusk);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 1.75rem 1.75rem 1.5rem;
-      box-shadow: 0 32px 80px rgba(0,0,0,0.55);
-      transition: border-color 0.3s, box-shadow 0.3s;
-    }
-    .call-card.answered {
-      border-color: rgba(90,184,122,0.3);
-      box-shadow: 0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(90,184,122,0.12);
-    }
+.ob-inner{padding:1.2rem 1.5rem 1.6rem}
+.ob-desc{font-size:.72rem;line-height:1.75;opacity:.62;margin-bottom:1.35rem}
 
-    .call-label {
-      display: flex; align-items: center; gap: 0.5rem;
-      font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--muted); margin-bottom: 1.1rem;
-    }
-    .call-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--answer);
-      animation: pulse 2s ease-in-out infinite;
-    }
-    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+.ob-qs{display:flex;flex-direction:column;margin-bottom:1.5rem}
+.ob-q{
+  display:flex;gap:.8rem;align-items:baseline;
+  padding:.6rem 0;border-top:1px solid var(--border);
+}
+.ob-q:last-child{border-bottom:1px solid var(--border)}
+.ob-qn{font-size:.5rem;letter-spacing:.08em;color:var(--oracle);opacity:.4;flex-shrink:0;width:1.1rem}
+.ob-qt{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:.9rem;color:var(--parchment);opacity:.77;line-height:1.35;
+}
 
-    .caller-name {
-      font-family: 'Cormorant Garamond', serif;
-      font-style: italic;
-      font-size: 2.3rem; font-weight: 300;
-      color: var(--parchment); line-height: 1;
-      margin-bottom: 0.3rem;
-    }
-    .caller-id { font-size: 0.58rem; letter-spacing: 0.06em; color: var(--oracle); opacity: 0.65; margin-bottom: 1.5rem; }
+.ob-actions{display:flex;flex-direction:column;gap:.5rem}
 
-    .call-timer {
-      font-size: 2.5rem; font-weight: 300; letter-spacing: -0.02em;
-      color: var(--parchment); line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-    .timer-colon { animation: blink 1s step-start infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.btn-ob{
+  width:100%;padding:.7rem;border-radius:9px;
+  font-family:'DM Mono',monospace;font-size:.66rem;font-weight:300;
+  letter-spacing:.05em;cursor:pointer;text-align:center;
+  transition:all .15s;
+}
+.btn-ob-browser{
+  background:transparent;border:1px solid var(--border-hi);color:var(--parchment);opacity:.75;
+}
+.btn-ob-browser:hover{opacity:1;border-color:var(--oracle)}
+.btn-ob-phone{
+  background:transparent;border:1px solid var(--answer);color:var(--answer);
+  display:none;
+}
+.btn-ob-phone:hover{background:rgba(90,184,122,.08)}
+.btn-ob-phone:disabled{opacity:.4;cursor:default}
 
-    .call-date { font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; margin-bottom: 1.6rem; }
+.ob-status{font-size:.57rem;letter-spacing:.08em;color:var(--oracle);opacity:.6;text-align:center;min-height:.85rem;margin-top:.4rem}
 
-    .call-actions { display: flex; gap: 0.65rem; }
+/* ─── Voice lines ─────────────────────────────────────────────────────────── */
+.lines-section{margin-top:3.5rem;padding-bottom:6rem}
+.lines-label{font-size:.52rem;letter-spacing:.2em;text-transform:uppercase;color:var(--oracle);opacity:.38;margin-bottom:1.5rem}
+.vline{
+  display:flex;align-items:baseline;justify-content:space-between;gap:2rem;
+  padding:1rem 0;border-top:1px solid var(--border);
+  transition:border-color .15s;
+}
+.vline:last-child{border-bottom:1px solid var(--border)}
+.vline:hover{border-color:var(--border-hi)}
+.vline-text{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:1.25rem;font-weight:300;color:var(--parchment);line-height:1.3;flex:1;
+  transition:opacity .15s;
+}
+.vline:hover .vline-text{opacity:.9}
+.vline-tag{font-size:.5rem;letter-spacing:.14em;text-transform:uppercase;color:var(--oracle);opacity:.3;white-space:nowrap}
 
-    .btn {
-      flex: 1; padding: 0.65rem 0; border-radius: 8px;
-      font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 300;
-      letter-spacing: 0.04em; cursor: pointer; transition: all 0.15s ease;
-      text-align: center; text-decoration: none; display: block;
-    }
-    .btn-decline {
-      background: transparent; color: var(--parchment);
-      border: 1px solid rgba(232,228,220,0.18);
-    }
-    .btn-decline:hover { border-color: rgba(232,228,220,0.35); }
-    .btn-answer {
-      background: var(--answer); color: var(--void);
-      border: 1px solid var(--answer); font-weight: 400;
-    }
-    .btn-answer:hover {
-      background: #6dd48e;
-      transform: translateY(-1px);
-      box-shadow: 0 8px 24px rgba(90,184,122,0.28);
-    }
-
-    .connecting {
-      display: none; font-size: 0.62rem; letter-spacing: 0.12em;
-      color: var(--oracle); opacity: 0.7; margin-top: 1rem; text-transform: uppercase;
-    }
-    .connecting.visible { display: block; }
-
-    /* ── Voice lines ── */
-    .lines-section { padding: 0.5rem 0 6rem; }
-    .lines-label {
-      font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase;
-      color: var(--oracle); opacity: 0.45; margin-bottom: 1.75rem;
-    }
-    .voice-line {
-      display: flex; align-items: baseline; justify-content: space-between;
-      gap: 2rem; padding: 1.1rem 0; border-top: 1px solid var(--border);
-    }
-    .voice-line:last-child { border-bottom: 1px solid var(--border); }
-    .voice-line-text {
-      font-family: 'Cormorant Garamond', serif; font-style: italic;
-      font-size: 1.35rem; font-weight: 300; color: var(--parchment);
-      line-height: 1.3; flex: 1;
-    }
-    .voice-line-tag {
-      font-size: 0.52rem; letter-spacing: 0.15em; text-transform: uppercase;
-      color: var(--oracle); opacity: 0.35; white-space: nowrap;
-    }
-
-    /* ── Onboarding card ── */
-    .onboarding-section {
-      padding: 3rem 0 0;
-    }
-
-    .onboarding-card {
-      width: 100%;
-      max-width: 480px;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-
-    .onboarding-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 1.5rem 1.75rem 1.25rem;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .onboarding-header:hover .ob-title { color: var(--parchment); }
-
-    .ob-badge {
-      font-size: 0.52rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--oracle);
-      opacity: 0.55;
-      margin-bottom: 0.45rem;
-    }
-
-    .ob-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-weight: 300;
-      font-size: 1.4rem;
-      color: var(--parchment);
-      opacity: 0.85;
-      line-height: 1.2;
-      transition: color 0.15s;
-    }
-
-    .ob-meta {
-      font-size: 0.6rem;
-      color: var(--muted);
-      margin-top: 0.35rem;
-      letter-spacing: 0.04em;
-    }
-
-    .ob-chevron {
-      font-size: 0.7rem;
-      color: var(--oracle);
-      opacity: 0.45;
-      margin-top: 0.2rem;
-      transition: transform 0.25s ease;
-      flex-shrink: 0;
-    }
-
-    .onboarding-card.open .ob-chevron { transform: rotate(180deg); }
-
-    /* Collapsible body */
-    .onboarding-body {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .onboarding-card.open .onboarding-body { max-height: 600px; }
-
-    .onboarding-inner { padding: 1.5rem 1.75rem 1.75rem; }
-
-    .ob-desc {
-      font-size: 0.75rem;
-      line-height: 1.75;
-      color: var(--parchment);
-      opacity: 0.65;
-      margin-bottom: 1.4rem;
-    }
-
-    .ob-questions {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      margin-bottom: 1.6rem;
-    }
-
-    .ob-q {
-      display: flex;
-      gap: 0.85rem;
-      align-items: baseline;
-      padding: 0.65rem 0;
-      border-top: 1px solid var(--border);
-    }
-    .ob-q:last-child { border-bottom: 1px solid var(--border); }
-
-    .ob-q-num {
-      font-size: 0.55rem;
-      letter-spacing: 0.08em;
-      color: var(--oracle);
-      opacity: 0.45;
-      flex-shrink: 0;
-      width: 1.2rem;
-    }
-
-    .ob-q-text {
-      font-family: 'Cormorant Garamond', serif;
-      font-style: italic;
-      font-size: 0.95rem;
-      color: var(--parchment);
-      opacity: 0.8;
-      line-height: 1.35;
-    }
-
-    .btn-onboard {
-      width: 100%;
-      padding: 0.75rem;
-      border-radius: 10px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.7rem;
-      font-weight: 300;
-      letter-spacing: 0.06em;
-      cursor: pointer;
-      background: transparent;
-      border: 1px solid var(--oracle);
-      color: var(--oracle);
-      transition: all 0.18s ease;
-      text-align: center;
-    }
-    .btn-onboard:hover {
-      background: rgba(200,176,154,0.08);
-      border-color: rgba(200,176,154,0.6);
-    }
-
-    .btn-call-phone {
-      margin-top: 0.55rem;
-      border-color: var(--answer) !important;
-      color: var(--answer) !important;
-    }
-    .btn-call-phone:hover {
-      background: rgba(90,184,122,0.08) !important;
-    }
-
-    .ob-connecting {
-      font-size: 0.6rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--oracle);
-      opacity: 0.65;
-      text-align: center;
-      margin-top: 0.85rem;
-      min-height: 1rem;
-    }
-
-    /* divider between onboarding card and call card */
-    .section-or {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 2.5rem 0 0;
-      max-width: 480px;
-    }
-    .section-or-line { flex: 1; height: 1px; background: var(--border); }
-    .section-or-text {
-      font-size: 0.55rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--oracle);
-      opacity: 0.35;
-    }
-
-    @media (max-width: 480px) {
-      .headline { font-size: 3.2rem; }
-      .call-card, .time-machine, .onboarding-card { max-width: 100%; }
-    }
+@media(max-width:480px){
+  h1{font-size:3rem}
+  .channel-cards{grid-template-columns:1fr 1fr}
+  .ch-card{padding:1rem}
+  .call-card,.ob-card{max-width:100%}
+  .reel-wrap{flex-direction:column;align-items:flex-start}
+}
   </style>
 </head>
 <body>
-<div class="page">
+<div class="wrap">
 
-  <nav>
-    <svg class="clock-icon" viewBox="0 0 42 42" fill="none">
-      <circle cx="21" cy="21" r="19.5" stroke="#c8b09a" stroke-width="1" stroke-opacity="0.45"/>
-      <line x1="21" y1="21" x2="21" y2="10" stroke="#c8b09a" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.65"/>
-      <line x1="21" y1="21" x2="28" y2="25" stroke="#c8b09a" stroke-width="1" stroke-linecap="round" stroke-opacity="0.45"/>
-      <circle cx="21" cy="21" r="1.5" fill="#c8b09a" fill-opacity="0.65"/>
-    </svg>
-  </nav>
+<!-- Nav -->
+<nav>
+  <svg class="clock" viewBox="0 0 38 38" fill="none">
+    <circle cx="19" cy="19" r="17.5" stroke="#c8b09a" stroke-width=".9" stroke-opacity=".5"/>
+    <line x1="19" y1="19" x2="19" y2="9" stroke="#c8b09a" stroke-width="1.1" stroke-linecap="round" stroke-opacity=".7"/>
+    <line x1="19" y1="19" x2="25.5" y2="23" stroke="#c8b09a" stroke-width=".9" stroke-linecap="round" stroke-opacity=".5"/>
+    <circle cx="19" cy="19" r="1.4" fill="#c8b09a" fill-opacity=".7"/>
+  </svg>
+</nav>
 
-  <section class="hero">
-    <h1 class="headline">Call <em>Me</em><br>Tomorrow.</h1>
-    <p class="tagline">A phone call from your future self</p>
-  </section>
+<!-- Hero -->
+<section class="hero">
+  <h1>Call <em>Me</em><br>Tomorrow.</h1>
+  <p class="tagline">A phone call from your future self</p>
+</section>
 
-  <div class="divider"></div>
+<div class="rule"></div>
 
-  <p class="body-copy">
-    Your future self has been trying to reach you.
-    The call lasts 8 minutes. By the end, you'll have
-    three things to do before next week.
-  </p>
+<p class="lede">Your future self has been trying to reach you. The call lasts 8 minutes. By the end, you'll have three things to do before next week.</p>
 
-  <!-- Selectors -->
-  <div class="selectors">
+<!-- Step 1: Channel -->
+<div class="step-label">
+  <span class="step-num">01</span>
+  <span class="step-title">Choose a channel</span>
+</div>
 
-    <!-- Channel -->
-    <div class="selector-group">
-      <span class="selector-label">Channel</span>
-      <div class="pill-group" id="channelGroup">
-        <button class="pill active" data-value="career" onclick="selectPill('channelGroup',this)">Career</button>
-        <button class="pill" data-value="life"   onclick="selectPill('channelGroup',this)">Life</button>
-      </div>
-    </div>
+<div class="channel-cards">
+  <div class="ch-card active" id="chCareer" data-value="career" onclick="selectChannel(this)">
+    <div class="ch-icon">Wk</div>
+    <div class="ch-name">Career</div>
+    <div class="ch-desc">The work you were meant to do.</div>
+  </div>
+  <div class="ch-card" id="chLife" data-value="life" onclick="selectChannel(this)">
+    <div class="ch-icon">Lf</div>
+    <div class="ch-name">Life</div>
+    <div class="ch-desc">The life you've been putting off.</div>
+  </div>
+</div>
 
-    <!-- Time Machine -->
-    <div class="selector-group">
-      <span class="selector-label">How far ahead?</span>
+<!-- Step 2: Time machine reel -->
+<div class="step-label">
+  <span class="step-num">02</span>
+  <span class="step-title">How far ahead?</span>
+</div>
 
-      <div class="time-machine spinning" id="timeMachine" onclick="handleTimeMachineClick()">
-        <div class="tm-scanline"></div>
-
-        <div class="tm-label">
-          <span class="tm-dot"></span>
-          <span id="tmLabelText">Time machine</span>
-        </div>
-
-        <!-- Reel window -->
-        <div class="tm-window">
-          <div class="tm-reel" id="tmReel">
-            <!-- Slots injected by JS -->
-          </div>
-        </div>
-
-        <div class="tm-sub" id="tmSub"></div>
-        <div class="tm-instruction" id="tmInstruction">Tap anywhere to stop</div>
-        <span class="tm-reset" id="tmReset" onclick="resetTimeMachine(event)">↺ spin again</span>
-      </div>
-    </div>
-
-    <!-- Phone -->
-    <div class="phone-row">
-      <span class="selector-label">Your number (returning user?)</span>
-      <input class="phone-input" id="phoneInput" type="tel" placeholder="+1 (415) 000-0000" autocomplete="tel" />
-    </div>
-
+<div class="reel-wrap">
+  <div class="reel-container" id="reelContainer"
+       tabindex="0"
+       aria-label="Year selector, use arrow keys or drag"
+       onkeydown="reelKeyDown(event)">
+    <div class="reel-highlight"></div>
+    <div class="reel-track" id="reelTrack"></div>
   </div>
 
-  <!-- Onboarding card -->
-  <section class="onboarding-section">
-    <div class="onboarding-card" id="onboardingCard">
-
-      <div class="onboarding-header" onclick="toggleOnboarding()">
-        <div>
-          <div class="ob-badge">First time? · ~15 min</div>
-          <div class="ob-title">Set up your profile</div>
-          <div class="ob-meta">8 questions &nbsp;·&nbsp; recorded &amp; remembered</div>
-        </div>
-        <span class="ob-chevron">▾</span>
-      </div>
-
-      <div class="onboarding-body">
-        <div class="onboarding-inner">
-          <p class="ob-desc">
-            Before Future Me can speak to you meaningfully, we need to know you.
-            This call is a conversation — not a form. Eight questions, asked one at a time.
-            Your answers become the foundation for every call after this.
-          </p>
-
-          <div class="ob-questions" id="obQuestions">
-            <!-- Populated by JS based on selected channel -->
-          </div>
-
-          <!-- Browser WebRTC option (always available) -->
-          <button class="btn-onboard" id="btnOnboardBrowser" onclick="handleOnboarding()">
-            Begin in browser
-          </button>
-
-          <!-- Phone call option (shown when phone number is entered) -->
-          <button class="btn-onboard btn-call-phone" id="btnCallPhone"
-                  style="display:none" onclick="handleCallMyPhone()">
-            Call my phone
-          </button>
-
-          <p class="ob-connecting" id="obConnecting"></p>
-        </div>
-      </div>
-
+  <div class="reel-side">
+    <div class="reel-horizon" id="reelHorizon"></div>
+    <div class="reel-year-label" id="reelYearLabel"></div>
+    <div class="reel-hint">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <line x1="6" y1="1" x2="6" y2="11" stroke="#c8b09a" stroke-width="1.2" stroke-linecap="round"/>
+        <polyline points="2,4 6,1 10,4" fill="none" stroke="#c8b09a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="2,8 6,11 10,8" fill="none" stroke="#c8b09a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Drag or scroll to choose
     </div>
-  </section>
-
-  <!-- Divider -->
-  <div class="section-or">
-    <div class="section-or-line"></div>
-    <span class="section-or-text">or</span>
-    <div class="section-or-line"></div>
   </div>
+</div>
 
-  <!-- Call card -->
-  <section class="call-section">
-    <div class="call-card" id="callCard">
-      <div class="call-label"><span class="call-dot"></span>Incoming call</div>
-      <div class="caller-name">Future You</div>
-      <div class="caller-id">call_me_tomorrow &middot; +1 (415) 000-2035</div>
-      <div class="call-timer">
-        <span id="minutes">08</span><span class="timer-colon">:</span><span id="seconds">12</span>
+<!-- Step 3: Phone -->
+<div class="step-label">
+  <span class="step-num">03</span>
+  <span class="step-title">Your number</span>
+</div>
+
+<div class="phone-row">
+  <input class="phone-input" id="phoneInput" type="tel"
+         placeholder="+1 (415) 000-0000" autocomplete="tel"/>
+  <button class="btn-call-phone" id="btnCallPhone" onclick="handleCallMyPhone()">
+    Call my phone
+  </button>
+</div>
+<div class="call-status-msg" id="callStatusMsg"></div>
+
+<!-- or — browser call -->
+<div class="or-row">
+  <div class="or-line"></div>
+  <span class="or-text">or use browser</span>
+  <div class="or-line"></div>
+</div>
+
+<!-- Incoming call card -->
+<section class="call-section">
+  <div class="call-card" id="callCard">
+    <div class="call-label"><span class="call-dot"></span>Incoming call</div>
+    <div class="caller-name">Future You</div>
+    <div class="caller-id">call_me_tomorrow &middot; +1 (415) 000-2035</div>
+    <div class="call-timer">
+      <span id="timerMin">08</span><span class="timer-colon">:</span><span id="timerSec">12</span>
+    </div>
+    <div class="call-date" id="callDate"></div>
+    <div class="call-actions">
+      <button class="btn btn-decline" onclick="handleDecline()">Decline</button>
+      <button class="btn btn-answer" onclick="handleAnswer()">Answer</button>
+    </div>
+  </div>
+  <div class="call-connecting" id="callConnecting"></div>
+</section>
+
+<!-- Onboarding -->
+<section class="ob-section">
+  <div class="ob-card open" id="obCard">
+    <div class="ob-header" onclick="toggleOb()">
+      <div>
+        <div class="ob-badge">First time · ~15 min</div>
+        <div class="ob-title">Set up your profile</div>
+        <div class="ob-meta">8 questions &nbsp;·&nbsp; saved &amp; remembered</div>
       </div>
-      <div class="call-date" id="callDate"></div>
-      <div class="call-actions">
-        <button class="btn btn-decline" onclick="handleDecline()">Decline</button>
-        <button class="btn btn-answer" onclick="handleAnswer()">Answer</button>
+      <span class="ob-chevron">▾</span>
+    </div>
+    <div class="ob-body">
+      <div class="ob-inner">
+        <p class="ob-desc">Before Future Me can speak to you meaningfully, we need to know you. This is a conversation — not a form. Eight questions, asked one at a time. Your answers shape every call after this.</p>
+        <div class="ob-qs" id="obQuestions"></div>
+        <div class="ob-actions">
+          <button class="btn-ob btn-ob-browser" id="btnObBrowser" onclick="handleObBrowser()">Begin in browser</button>
+          <button class="btn-ob btn-ob-phone" id="btnObPhone" onclick="handleObPhone()">Call my phone instead</button>
+        </div>
+        <div class="ob-status" id="obStatus"></div>
       </div>
     </div>
-    <p class="connecting" id="connectingMsg">Connecting to Future Me...</p>
-  </section>
+  </div>
+</section>
 
-  <!-- Voice lines -->
-  <section class="lines-section">
-    <p class="lines-label">Voice lines</p>
-    <div class="voice-line">
-      <span class="voice-line-text">A phone call from your future self.</span>
-      <span class="voice-line-tag">Hero</span>
-    </div>
-    <div class="voice-line">
-      <span class="voice-line-text">Tomorrow already knows.</span>
-      <span class="voice-line-tag">Alt 1</span>
-    </div>
-    <div class="voice-line">
-      <span class="voice-line-text">Pick up. It's you.</span>
-      <span class="voice-line-tag">Alt 2</span>
-    </div>
-    <div class="voice-line">
-      <span class="voice-line-text">Your future self has been trying to reach you.</span>
-      <span class="voice-line-tag">Long form</span>
-    </div>
-  </section>
+<!-- Voice lines -->
+<section class="lines-section">
+  <p class="lines-label">Voice lines</p>
+  <div class="vline">
+    <span class="vline-text">A phone call from your future self.</span>
+    <span class="vline-tag">Hero</span>
+  </div>
+  <div class="vline">
+    <span class="vline-text">Tomorrow already knows.</span>
+    <span class="vline-tag">Alt 1</span>
+  </div>
+  <div class="vline">
+    <span class="vline-text">Pick up. It's you.</span>
+    <span class="vline-tag">Alt 2</span>
+  </div>
+  <div class="vline">
+    <span class="vline-text">Your future self has been trying to reach you.</span>
+    <span class="vline-tag">Long form</span>
+  </div>
+</section>
 
-</div><!-- /page -->
+</div><!-- /wrap -->
 
 <script>
-// ═══════════════════════════════════════════════════════
-// TIME MACHINE
-// ═══════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
 const NOW = new Date().getFullYear();
-const MIN_YEARS = 1;
-const MAX_YEARS = 12;
-const YEARS = Array.from({ length: MAX_YEARS }, (_, i) => NOW + i + 1); // 2027…2038
+const YEARS = Array.from({length: 14}, (_, i) => NOW + 1 + i); // 2027–2040
+const SLOT  = 72; // px — must match --slot CSS var
 
-let tmSpinning = true;
-let tmLockedYear = null;
-let tmCurrentIndex = 0;
-let tmInterval = null;
-let tmAnimating = false;
+let selectedChannel = 'career';
+let selectedYearIdx = 4; // default index → year 5 ahead
+let lockedYear      = null;
 
-const reel       = document.getElementById('tmReel');
-const tmSub      = document.getElementById('tmSub');
-const tmInstr    = document.getElementById('tmInstruction');
-const tmLabel    = document.getElementById('tmLabelText');
-const tmMachine  = document.getElementById('timeMachine');
+/* ══════════════════════════════════════════════════════════════
+   CHANNEL SELECTION
+══════════════════════════════════════════════════════════════ */
+function selectChannel(el) {
+  document.querySelectorAll('.ch-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  selectedChannel = el.dataset.value;
+  renderObQuestions();
+}
 
-// Build reel slots (one per year + clones at start/end for seamless loop)
+/* ══════════════════════════════════════════════════════════════
+   REEL — build, drag, scroll, keyboard
+══════════════════════════════════════════════════════════════ */
+const track     = document.getElementById('reelTrack');
+const container = document.getElementById('reelContainer');
+
+// Build slots
 function buildReel() {
-  reel.innerHTML = '';
-  const allYears = [...YEARS, ...YEARS, ...YEARS]; // triple for seamless cycling
-  allYears.forEach(yr => {
+  track.innerHTML = '';
+  YEARS.forEach((yr, i) => {
     const slot = document.createElement('div');
-    slot.className = 'tm-slot';
-    slot.innerHTML = `<span class="tm-year">${yr}</span>`;
-    reel.appendChild(slot);
+    slot.className = 'reel-slot';
+    slot.dataset.idx = i;
+    slot.innerHTML = `<span class="reel-year">${yr}</span>`;
+    track.appendChild(slot);
   });
-  // Start in the middle set so we can loop both ways
-  tmCurrentIndex = YEARS.length;
-  applyReelPosition(false);
+  applyReelPos(false);
+  updateReelMeta();
 }
 
-function applyReelPosition(animate) {
-  const slotH = 80; // px — matches .tm-slot height (5rem @ 16px = 80px)
-  const offset = -tmCurrentIndex * slotH;
-  reel.style.transition = animate ? 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
-  reel.style.transform = `translateY(${offset}px)`;
+function applyReelPos(animate) {
+  // Center the selected slot in the 3-slot window
+  // Window center = SLOT * 1 (middle of 3 slots visible)
+  const y = SLOT - selectedYearIdx * SLOT;
+  track.style.transition = animate ? 'transform .28s cubic-bezier(.25,.46,.45,.94)' : 'none';
+  track.style.transform  = `translateY(${y}px)`;
+
+  // Update slot visual states
+  track.querySelectorAll('.reel-slot').forEach((sl, i) => {
+    const dist = Math.abs(i - selectedYearIdx);
+    sl.classList.toggle('selected', i === selectedYearIdx);
+    sl.classList.toggle('near', dist === 1);
+  });
 }
 
-function currentYear() {
-  const idx = tmCurrentIndex % YEARS.length;
-  return YEARS[idx];
-}
-
-function updateSub(yr) {
+function updateReelMeta() {
+  const yr   = YEARS[selectedYearIdx];
   const diff = yr - NOW;
-  tmSub.textContent = `· ${diff} year${diff === 1 ? '' : 's'} from now`;
-  // Also update call card date
-  const d = new Date();
-  d.setFullYear(yr);
+  lockedYear = yr;
+  document.getElementById('reelHorizon').textContent  = `${diff} year${diff === 1 ? '' : 's'} from now`;
+  document.getElementById('reelYearLabel').textContent = String(yr);
+  // update call card date too
+  const d = new Date(); d.setFullYear(yr);
   document.getElementById('callDate').textContent =
-    d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
 }
 
-function tick(fast) {
-  if (!tmSpinning || tmAnimating) return;
-  tmAnimating = true;
-  tmCurrentIndex++;
-
-  // Seamless wrap: if we've gone past 2× set, reset to 1× set quietly
-  if (tmCurrentIndex >= YEARS.length * 2) {
-    reel.style.transition = 'none';
-    tmCurrentIndex = YEARS.length + (tmCurrentIndex - YEARS.length * 2);
-    reel.style.transform = `translateY(${-tmCurrentIndex * 80}px)`;
-    // Force reflow then animate
-    void reel.offsetHeight;
-  }
-
-  applyReelPosition(true);
-  updateSub(currentYear());
-
-  const dur = fast ? 120 : 320;
-  setTimeout(() => { tmAnimating = false; }, dur + 20);
+function snapToIdx(idx, animate = true) {
+  selectedYearIdx = Math.max(0, Math.min(YEARS.length - 1, Math.round(idx)));
+  applyReelPos(animate);
+  updateReelMeta();
 }
 
-function startSpinning() {
-  clearInterval(tmInterval);
-  // Accelerate: start slow, speed up
-  let delay = 500;
-  let spins = 0;
+/* ── Drag ── */
+let drag = {active: false, startY: 0, startIdx: 0, lastY: 0, lastTime: 0, velocity: 0};
 
-  function scheduleTick() {
-    tmInterval = setTimeout(() => {
-      if (!tmSpinning) return;
-      tick(delay < 200);
-      spins++;
-      if (delay > 160) delay = Math.max(160, delay - 40);
-      scheduleTick();
-    }, delay);
-  }
-  scheduleTick();
+container.addEventListener('mousedown',  e => startDrag(e.clientY));
+container.addEventListener('touchstart', e => startDrag(e.touches[0].clientY), {passive:true});
+
+function startDrag(clientY) {
+  drag.active   = true;
+  drag.startY   = clientY;
+  drag.startIdx = selectedYearIdx;
+  drag.lastY    = clientY;
+  drag.lastTime = Date.now();
+  drag.velocity = 0;
+  track.style.transition = 'none';
 }
 
-function handleTimeMachineClick() {
-  if (!tmSpinning) return;
-  stopMachine();
+document.addEventListener('mousemove',  e => onDrag(e.clientY));
+document.addEventListener('touchmove',  e => onDrag(e.touches[0].clientY), {passive:true});
+
+function onDrag(clientY) {
+  if (!drag.active) return;
+  const now = Date.now();
+  const dt  = now - drag.lastTime || 1;
+  drag.velocity = (drag.lastY - clientY) / dt;
+  drag.lastY    = clientY;
+  drag.lastTime = now;
+
+  const deltaPx   = drag.startY - clientY;
+  const deltaSlots = deltaPx / SLOT;
+  const rawIdx    = drag.startIdx + deltaSlots;
+  // Move track directly without snap
+  const y = SLOT - rawIdx * SLOT;
+  track.style.transform = `translateY(${y}px)`;
+
+  // Highlight nearest slot visually
+  const nearestIdx = Math.round(rawIdx);
+  track.querySelectorAll('.reel-slot').forEach((sl, i) => {
+    const dist = Math.abs(i - nearestIdx);
+    sl.classList.toggle('selected', i === nearestIdx);
+    sl.classList.toggle('near', dist === 1);
+  });
 }
 
-function stopMachine() {
-  tmSpinning = false;
-  clearInterval(tmInterval);
-  clearTimeout(tmInterval);
+document.addEventListener('mouseup',   endDrag);
+document.addEventListener('touchend',  endDrag);
 
-  tmLockedYear = currentYear();
-  tmMachine.classList.remove('spinning');
-  tmMachine.classList.add('locked');
-  tmLabel.textContent = 'Locked in';
-  tmInstr.textContent = `Future Me is from ${tmLockedYear}`;
-  updateSub(tmLockedYear);
-  tmMachine.style.cursor = 'default';
+function endDrag() {
+  if (!drag.active) return;
+  drag.active = false;
+
+  // Momentum: project forward from velocity
+  const deltaPx   = drag.startY - drag.lastY;
+  const deltaSlots = deltaPx / SLOT;
+  const momentum  = drag.velocity * 80; // px → additional slots
+  const rawIdx    = drag.startIdx + deltaSlots + (momentum / SLOT);
+  snapToIdx(rawIdx);
 }
 
-function resetTimeMachine(e) {
-  e.stopPropagation();
-  tmSpinning = true;
-  tmLockedYear = null;
-  tmMachine.classList.remove('locked');
-  tmMachine.classList.add('spinning');
-  tmLabel.textContent = 'Time machine';
-  tmInstr.textContent = 'Tap anywhere to stop';
-  tmMachine.style.cursor = 'pointer';
-  startSpinning();
+/* ── Scroll wheel ── */
+container.addEventListener('wheel', e => {
+  e.preventDefault();
+  const dir = e.deltaY > 0 ? 1 : -1;
+  snapToIdx(selectedYearIdx + dir);
+}, {passive: false});
+
+/* ── Keyboard ── */
+function reelKeyDown(e) {
+  if (e.key === 'ArrowDown') { e.preventDefault(); snapToIdx(selectedYearIdx + 1); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); snapToIdx(selectedYearIdx - 1); }
 }
 
-// Init
+/* ── Init ── */
 buildReel();
-updateSub(currentYear());
-startSpinning();
 
+/* ══════════════════════════════════════════════════════════════
+   CALL CARD TIMER (decorative count-up)
+══════════════════════════════════════════════════════════════ */
+let t = 8 * 60 + 12;
+setInterval(() => {
+  t++;
+  document.getElementById('timerMin').textContent = String(Math.floor(t/60)).padStart(2,'0');
+  document.getElementById('timerSec').textContent = String(t%60).padStart(2,'0');
+}, 1000);
 
-// ═══════════════════════════════════════════════════════
-// ONBOARDING CARD
-// ═══════════════════════════════════════════════════════
-const ONBOARDING_QUESTIONS = {
-  career: [
-    "What made you pick this up today? What's actually going on with your work?",
-    "Tell me about a time when you were really in your element professionally.",
-    "What's different between that version of you and where you are today?",
-    "Suppose tonight a miracle happens and you wake up {horizon} years later — what's the first thing you notice is different?",
-    "What keeps showing up in your way? Not the obvious stuff — the real thing.",
+/* ══════════════════════════════════════════════════════════════
+   PHONE INPUT — watch and reveal "Call my phone"
+══════════════════════════════════════════════════════════════ */
+document.getElementById('phoneInput').addEventListener('input', function() {
+  const hasPhone = this.value.trim().length >= 7;
+  document.getElementById('btnCallPhone').style.display = hasPhone ? 'block' : 'none';
+  document.getElementById('btnObPhone').style.display   = hasPhone ? 'block' : 'none';
+});
+
+/* ══════════════════════════════════════════════════════════════
+   OUTBOUND PHONE CALL
+══════════════════════════════════════════════════════════════ */
+async function handleCallMyPhone() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  if (!phone) return;
+  const btn = document.getElementById('btnCallPhone');
+  btn.disabled = true; btn.textContent = 'Calling…';
+  setCallStatus(`Calling ${phone}…`);
+
+  try {
+    const res = await fetch('/api/call-outbound', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({phone, channel: selectedChannel,
+                            time_horizon: lockedYear - NOW, force_onboarding: false}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `${res.status}`);
+    setCallStatus('Your phone should ring. Pick up — it\'s Future Me.');
+    btn.textContent = '✓ Called';
+    setTimeout(() => { btn.textContent = 'Call my phone'; btn.disabled = false; setCallStatus(''); }, 12000);
+  } catch(err) {
+    setCallStatus(`Failed: ${err.message}`);
+    btn.textContent = 'Call my phone'; btn.disabled = false;
+  }
+}
+
+function setCallStatus(msg) { document.getElementById('callStatusMsg').textContent = msg; }
+
+/* ══════════════════════════════════════════════════════════════
+   BROWSER ANSWER (call card)
+══════════════════════════════════════════════════════════════ */
+function handleDecline() {
+  const card = document.getElementById('callCard');
+  card.style.cssText = 'transition:opacity .3s,transform .3s;opacity:0;transform:translateY(8px)';
+  setTimeout(() => {
+    card.innerHTML = '<div style="padding:1rem 0;font-size:.68rem;color:rgba(232,228,220,.3);letter-spacing:.04em">Call declined.</div>';
+    card.style.cssText = 'padding:1rem 1.65rem;opacity:1;transform:none;transition:opacity .3s,transform .3s';
+  }, 300);
+}
+
+async function handleAnswer() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  const card  = document.getElementById('callCard');
+  card.classList.add('answered');
+  document.getElementById('callConnecting').textContent = 'Connecting to Future Me…';
+
+  try {
+    const res = await fetch('/start', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        transport:'webrtc',
+        body:{ channel: selectedChannel, time_horizon: lockedYear - NOW,
+               phone: phone||null, force_onboarding: !phone },
+      }),
+    });
+    if (!res.ok) throw new Error(`/start → ${res.status}`);
+    const data = await res.json();
+    const q = new URLSearchParams({channel:selectedChannel, time_horizon:lockedYear-NOW, phone:phone||''});
+    window.location.href = `/call?${q}`;
+  } catch(err) {
+    document.getElementById('callConnecting').textContent = 'Connection failed — try again.';
+    card.classList.remove('answered');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ONBOARDING
+══════════════════════════════════════════════════════════════ */
+const OB_QS = {
+  career:[
+    "What made you pick this up today?",
+    "Tell me about a time you were really in your element at work.",
+    "What's different between that version of you and now?",
+    "Wake up {h} years from now — a miracle happened. What's different?",
+    "What keeps showing up in your way?",
     "What actually matters most to you in your work?",
     "What would you lose if things actually changed?",
-    "On a scale of 1 to 10 — how ready are you, honestly, to do something different?",
+    "Scale of 1 to 10 — how ready are you?",
   ],
-  life: [
-    "What's going on for you right now? Start wherever feels most true.",
-    "Tell me about a time when you felt genuinely like yourself — alive, engaged.",
-    "What's the distance between that and where you are today?",
-    "Imagine you wake up {horizon} years from now — a miracle happened. What's different?",
-    "What pattern keeps getting in your way — the thing you recognize but can't shake?",
-    "When you strip everything away, what actually matters most to you?",
-    "What would you lose if you actually changed?",
-    "Scale of 1 to 10 — how ready are you to do something different?",
+  life:[
+    "What's going on for you right now?",
+    "Tell me about a time you felt genuinely like yourself.",
+    "What's the distance between that and today?",
+    "Wake up {h} years from now — a miracle happened. What do you notice?",
+    "What pattern keeps getting in your way?",
+    "What actually matters most to you?",
+    "What would you lose if you changed?",
+    "Scale of 1 to 10 — how ready are you?",
   ],
 };
 
-function renderOnboardingQuestions() {
-  const channel = getSelected('channelGroup') || 'career';
-  const horizon = (tmLockedYear ? tmLockedYear - NOW : 5);
-  const qs = (ONBOARDING_QUESTIONS[channel] || ONBOARDING_QUESTIONS.career)
-    .map(q => q.replace('{horizon}', `${horizon} years`));
+function toggleOb() {
+  document.getElementById('obCard').classList.toggle('open');
+  renderObQuestions();
+}
 
+function renderObQuestions() {
+  const qs   = OB_QS[selectedChannel] || OB_QS.career;
+  const diff = (lockedYear || YEARS[selectedYearIdx]) - NOW;
   document.getElementById('obQuestions').innerHTML = qs.map((q, i) =>
     `<div class="ob-q">
-       <span class="ob-q-num">0${i+1}</span>
-       <span class="ob-q-text">${q}</span>
+       <span class="ob-qn">0${i+1}</span>
+       <span class="ob-qt">${q.replace('{h}', `${diff} years`)}</span>
      </div>`
   ).join('');
 }
 
-function toggleOnboarding() {
-  const card = document.getElementById('onboardingCard');
-  const isOpen = card.classList.contains('open');
-  if (!isOpen) renderOnboardingQuestions();
-  card.classList.toggle('open', !isOpen);
-}
-
-// Re-render questions if channel changes while card is open
-const _origSelectPill = window.selectPill;
-window.selectPill = function(groupId, el) {
-  _origSelectPill(groupId, el);
-  const card = document.getElementById('onboardingCard');
-  if (card.classList.contains('open') && groupId === 'channelGroup') {
-    renderOnboardingQuestions();
-  }
-};
-
-// ── Phone input watcher — shows "Call my phone" when number is entered ──────
-document.getElementById('phoneInput').addEventListener('input', function() {
-  const val = this.value.trim();
-  const hasPhone = val.length >= 7;
-  document.getElementById('btnCallPhone').style.display = hasPhone ? 'block' : 'none';
-  document.getElementById('btnOnboardBrowser').textContent =
-    hasPhone ? 'Begin in browser instead' : 'Begin in browser';
-});
-
-// ── Browser WebRTC onboarding ─────────────────────────────────────────────
-async function handleOnboarding() {
-  const channel     = getSelected('channelGroup') || 'career';
-  const lockedYear  = tmLockedYear || currentYear();
-  const timeHorizon = lockedYear - NOW;
-  const phone       = document.getElementById('phoneInput').value.trim();
-
-  const btn = document.getElementById('btnOnboardBrowser');
-  btn.textContent = 'Connecting...';
-  btn.disabled = true;
-  setObStatus('Starting browser call...');
-
-  if (tmSpinning) stopMachine();
-
+async function handleObBrowser() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  const btn = document.getElementById('btnObBrowser');
+  btn.textContent = 'Connecting…'; btn.disabled = true;
+  setObStatus('Starting browser call…');
   try {
     const res = await fetch('/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transport: 'webrtc',
-        body: { channel, time_horizon: timeHorizon, phone: phone || null, force_onboarding: true },
-      }),
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({transport:'webrtc',
+        body:{channel:selectedChannel, time_horizon:lockedYear-NOW,
+              phone:phone||null, force_onboarding:true}}),
     });
-    if (!res.ok) throw new Error(`/start returned ${res.status}`);
+    if (!res.ok) throw new Error(`${res.status}`);
     const data = await res.json();
-    window.location.href = `/client/?session_id=${data.sessionId}`;
-  } catch (err) {
-    console.error('Browser onboarding failed:', err);
+    const q = new URLSearchParams({channel:selectedChannel, time_horizon:lockedYear-NOW, phone:phone||''});
+    window.location.href = `/call?${q}`;
+  } catch(err) {
     setObStatus('Connection failed — try again.');
-    btn.textContent = 'Begin in browser';
-    btn.disabled = false;
+    btn.textContent = 'Begin in browser'; btn.disabled = false;
   }
 }
 
-// ── Outbound phone call ───────────────────────────────────────────────────
-async function handleCallMyPhone() {
-  const channel     = getSelected('channelGroup') || 'career';
-  const lockedYear  = tmLockedYear || currentYear();
-  const timeHorizon = lockedYear - NOW;
-  const phone       = document.getElementById('phoneInput').value.trim();
-
-  if (!phone) {
-    setObStatus('Enter your phone number first.');
-    return;
-  }
-
-  if (tmSpinning) stopMachine();
-
-  const btn = document.getElementById('btnCallPhone');
-  btn.textContent = 'Calling...';
-  btn.disabled = true;
+async function handleObPhone() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  if (!phone) return;
+  const btn = document.getElementById('btnObPhone');
+  btn.disabled = true; btn.textContent = 'Calling…';
   setObStatus(`Calling ${phone}…`);
-
   try {
     const res = await fetch('/api/call-outbound', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, channel, time_horizon: timeHorizon, force_onboarding: true }),
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({phone, channel:selectedChannel,
+                            time_horizon:lockedYear-NOW, force_onboarding:true}),
     });
-
     const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || `Server error ${res.status}`);
-    }
-
-    setObStatus(`Your phone should ring shortly. Pick up — it's Recall.`);
-    btn.textContent = '✓ Call initiated';
-
-    // Auto-reset after 10s so they can call again if needed
-    setTimeout(() => {
-      btn.textContent = 'Call my phone';
-      btn.disabled = false;
-      setObStatus('');
-    }, 10000);
-
-  } catch (err) {
-    console.error('Outbound call failed:', err);
+    if (!res.ok) throw new Error(data.error||`${res.status}`);
+    setObStatus('Your phone should ring. It\'s Recall.');
+    btn.textContent = '✓ Called';
+    setTimeout(() => { btn.textContent = 'Call my phone instead'; btn.disabled = false; setObStatus(''); }, 12000);
+  } catch(err) {
     setObStatus(`Failed: ${err.message}`);
-    btn.textContent = 'Call my phone';
-    btn.disabled = false;
+    btn.textContent = 'Call my phone instead'; btn.disabled = false;
   }
 }
 
-function setObStatus(msg) {
-  document.getElementById('obConnecting').textContent = msg;
-}
+function setObStatus(msg) { document.getElementById('obStatus').textContent = msg; }
 
-// ═══════════════════════════════════════════════════════
-// CALL CARD TIMER
-// ═══════════════════════════════════════════════════════
-let t = 8 * 60 + 12;
-const mEl = document.getElementById('minutes');
-const sEl = document.getElementById('seconds');
-setInterval(() => {
-  t++;
-  mEl.textContent = String(Math.floor(t / 60)).padStart(2, '0');
-  sEl.textContent = String(t % 60).padStart(2, '0');
-}, 1000);
-
-
-// ═══════════════════════════════════════════════════════
-// CHANNEL PILLS
-// ═══════════════════════════════════════════════════════
-function selectPill(groupId, el) {
-  document.querySelectorAll(`#${groupId} .pill`).forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-}
-
-function getSelected(groupId) {
-  const a = document.querySelector(`#${groupId} .pill.active`);
-  return a ? a.dataset.value : null;
-}
-
-
-// ═══════════════════════════════════════════════════════
-// DECLINE / ANSWER
-// ═══════════════════════════════════════════════════════
-function handleDecline() {
-  const card = document.getElementById('callCard');
-  card.style.transition = 'opacity 0.35s, transform 0.35s';
-  card.style.opacity = '0';
-  card.style.transform = 'translateY(6px)';
-  setTimeout(() => {
-    card.innerHTML = `<div style="padding:1rem 0;font-size:0.7rem;color:var(--muted);text-align:center;letter-spacing:0.04em;">Call ended.</div>`;
-    card.style.padding = '1rem 1.75rem';
-    card.style.opacity = '1';
-    card.style.transform = 'none';
-  }, 350);
-}
-
-async function handleAnswer() {
-  const channel     = getSelected('channelGroup') || 'life';
-  const lockedYear  = tmLockedYear || currentYear();
-  const timeHorizon = lockedYear - NOW;
-  const phone       = document.getElementById('phoneInput').value.trim();
-
-  const card = document.getElementById('callCard');
-  card.classList.add('answered');
-  document.getElementById('connectingMsg').classList.add('visible');
-
-  // Stop time machine if still spinning
-  if (tmSpinning) stopMachine();
-
-  try {
-    const res = await fetch('/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transport: 'webrtc',
-        body: { channel, time_horizon: timeHorizon, phone: phone || null },
-      }),
-    });
-
-    if (!res.ok) throw new Error(`/start returned ${res.status}`);
-    const data = await res.json();
-    window.location.href = `/client/?session_id=${data.sessionId}`;
-
-  } catch (err) {
-    console.error('Call failed:', err);
-    document.getElementById('connectingMsg').textContent = 'Connection failed — try again.';
-    card.classList.remove('answered');
-  }
-}
+/* ── Init ── */
+renderObQuestions();
 </script>
 </body>
 </html>

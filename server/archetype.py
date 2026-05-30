@@ -6,6 +6,8 @@ tone, metaphors, and emotional register — not what is said.
 
 from dataclasses import dataclass
 
+from typing import Iterable
+
 ARCHETYPES: dict[str, dict] = {
     "The Magician": {
         "number": 1,
@@ -110,3 +112,55 @@ def assign_archetype(answers: dict[str, str]) -> ArchetypeResult:
 
     a = ARCHETYPES[best]
     return ArchetypeResult(name=best, tone=a["tone"], metaphor=a["metaphor"], number=a["number"])
+
+
+def list_tarot_cards() -> list[dict]:
+    """Return lightweight summaries of all archetypes for UI decks."""
+    cards: list[dict] = []
+    for name, data in ARCHETYPES.items():
+        cards.append(
+            {
+                "name": name,
+                "number": data["number"],
+                "signals": data["signals"],
+                "metaphor": data["metaphor"],
+                "shadow": data["shadow"],
+            }
+        )
+    cards.sort(key=lambda c: c["number"])
+    return cards
+
+
+def _comma_list(values: Iterable[str], limit: int = 3) -> str:
+    subset = list(values)[:limit]
+    return ", ".join(subset)
+
+
+def build_tarot_reading(card_name: str, focus: str | None = None) -> dict:
+    """Create a short, deterministic reading for the requested card."""
+    if card_name not in ARCHETYPES:
+        raise KeyError(card_name)
+
+    data = ARCHETYPES[card_name]
+    signals = data["signals"]
+    focus_line = (
+        f"When you hold \"{focus.strip()}\" in mind, this card asks you to work with those threads."
+        if focus and focus.strip()
+        else "This card invites you to sit with what is already alive in you."
+    )
+
+    reading = (
+        f"{card_name} (Major Arcana {data['number']}) sits in the territory of "
+        f"{_comma_list(signals)}. {focus_line} {data['tone'].capitalize()} "
+        f"{data['metaphor']} Its shadow shows up when you become {data['shadow']}."
+    )
+
+    return {
+        "card": card_name,
+        "number": data["number"],
+        "signals": signals,
+        "tone": data["tone"],
+        "metaphor": data["metaphor"],
+        "shadow": data["shadow"],
+        "reading": reading,
+    }
