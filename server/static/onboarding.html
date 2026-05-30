@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Onboarding — Call Me Tomorrow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --void:#0a0a0f;
+  --oracle:#c8b09a;
+  --parchment:#e8e4dc;
+  --dusk:#161619;
+  --border:rgba(200,176,154,.10);
+  --border-hi:rgba(200,176,154,.28);
+}
+html{scroll-behavior:smooth}
+body{background:var(--void);color:var(--parchment);font-family:'DM Mono',monospace;font-weight:300;min-height:100vh;display:flex;flex-direction:column}
+
+/* ─── Page shell ──────────────────────────────────────────────────────────── */
+.page{display:flex;align-items:flex-start;gap:0;flex:1;min-height:100vh}
+.main-col{flex:1;max-width:620px;padding:2rem 1.5rem;min-width:0}
+.wrap{width:100%}
+
+header{margin-bottom:2.5rem}
+.back-link{display:inline-flex;align-items:center;gap:.5rem;color:var(--oracle);opacity:.6;text-decoration:none;font-size:.62rem;letter-spacing:.1em;transition:opacity .2s}
+.back-link:hover{opacity:1}
+.back-link svg{width:16px;height:16px}
+
+h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(2.4rem,8vw,3.6rem);
+  font-weight:300;line-height:.9;letter-spacing:-.02em;
+  margin-top:1.2rem;
+}
+h1 em{font-style:italic;color:var(--oracle)}
+.subtitle{margin-top:.8rem;font-size:.64rem;color:var(--oracle);opacity:.5;letter-spacing:.12em;text-transform:uppercase}
+
+/* ─── Call card ───────────────────────────────────────────────────────────── */
+.call-card{
+  border:1px solid var(--border);border-radius:16px;
+  background:linear-gradient(180deg,rgba(22,22,25,.6),rgba(10,10,15,.9));
+  padding:1.8rem 1.5rem 1.5rem;
+  position:relative;overflow:hidden;
+}
+.call-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 60% 30%,rgba(200,176,154,.04),transparent 70%);
+  pointer-events:none;
+}
+
+.call-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem}
+.caller-info{display:flex;align-items:center;gap:.75rem}
+.caller-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:linear-gradient(135deg,rgba(200,176,154,.15),rgba(200,176,154,.05));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:1.1rem;color:var(--oracle);
+}
+.caller-name{font-size:.78rem;font-weight:400;color:var(--parchment)}
+.caller-role{font-size:.56rem;color:var(--oracle);opacity:.5;letter-spacing:.06em}
+
+.status-row{display:flex;align-items:center;gap:.6rem}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:background .3s}
+.status-dot.active{background:var(--oracle);box-shadow:0 0 12px rgba(200,176,154,.4)}
+.status-text{font-size:.58rem;color:var(--oracle);opacity:.5;letter-spacing:.08em;text-transform:uppercase}
+.timer{font-size:.64rem;color:var(--parchment);opacity:.6;font-family:'DM Mono',monospace}
+
+/* ─── Transcript ─────────────────────────────────────────────────────────── */
+.transcript-container{
+  margin-top:1.5rem;
+  border:1px solid var(--border);border-radius:12px;
+  background:rgba(22,22,25,.4);
+  overflow:hidden;
+}
+.transcript-header{
+  padding:.9rem 1.2rem;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.transcript-title{font-size:.58rem;color:var(--oracle);opacity:.5;letter-spacing:.1em;text-transform:uppercase}
+.transcript-body{
+  max-height:320px;overflow-y:auto;
+  padding:1rem 1.2rem;
+  scroll-behavior:smooth;
+}
+.transcript-body::-webkit-scrollbar{width:4px}
+.transcript-body::-webkit-scrollbar-track{background:transparent}
+.transcript-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.turn{margin-bottom:1.2rem;animation:fadeIn .3s ease-out}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.turn-speaker{font-size:.56rem;color:var(--oracle);opacity:.6;letter-spacing:.08em;margin-bottom:.4rem;display:block}
+.turn-bubble{
+  font-size:.7rem;line-height:1.7;color:var(--parchment);
+  padding:.7rem .9rem;border-radius:10px;
+  background:rgba(200,176,154,.04);border:1px solid rgba(200,176,154,.08);
+}
+.turn.user .turn-bubble{background:rgba(90,184,122,.06);border-color:rgba(90,184,122,.12)}
+.turn.assistant .turn-bubble{background:rgba(200,176,154,.04);border-color:rgba(200,176,154,.08)}
+
+.empty-state{text-align:center;padding:2rem 1rem;color:var(--oracle);opacity:.3;font-size:.64rem;letter-spacing:.04em}
+
+.thinking{
+  display:none;align-items:center;gap:.4rem;
+  padding:.6rem 0;margin-top:.8rem;
+}
+.thinking.visible{display:flex}
+.think-dot{width:6px;height:6px;border-radius:50%;background:var(--oracle);opacity:.4;animation:thinkPulse 1.2s ease-in-out infinite}
+.think-dot:nth-child(2){animation-delay:.2s}
+.think-dot:nth-child(3){animation-delay:.4s}
+@keyframes thinkPulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:.8;transform:scale(1.2)}}
+
+/* ─── Guide sidebar ──────────────────────────────────────────────────────── */
+.guide-panel{
+  width:280px;flex-shrink:0;
+  border-left:1px solid var(--border);
+  background:rgba(22,22,25,.55);
+  padding:1.6rem 1.25rem 2rem;
+  min-height:100vh;
+  position:sticky;top:0;align-self:flex-start;
+  transition:width .25s ease,padding .25s ease,opacity .2s;
+  overflow:hidden;
+}
+.guide-panel.collapsed{
+  width:44px;padding:1.2rem .6rem;
+}
+.guide-panel.collapsed .guide-body{opacity:0;pointer-events:none}
+
+.guide-toggle{
+  display:flex;align-items:center;justify-content:flex-end;
+  margin-bottom:1.4rem;
+}
+.guide-panel.collapsed .guide-toggle{justify-content:center;margin-bottom:0}
+.guide-toggle-btn{
+  background:none;border:1px solid var(--border);border-radius:7px;
+  color:var(--oracle);cursor:pointer;padding:.35rem .5rem;
+  display:flex;align-items:center;gap:.3rem;
+  font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.08em;
+  transition:border-color .2s,background .2s;
+}
+.guide-toggle-btn:hover{border-color:var(--border-hi);background:rgba(200,176,154,.04)}
+.guide-toggle-btn svg{width:13px;height:13px;flex-shrink:0}
+.guide-toggle-label{white-space:nowrap}
+.guide-panel.collapsed .guide-toggle-label{display:none}
+
+.guide-body{transition:opacity .2s}
+
+.guide-section-title{
+  font-size:.48rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--oracle);opacity:.4;margin-bottom:.9rem;
+}
+
+.guide-intro{
+  font-size:.62rem;line-height:1.7;color:var(--oracle);opacity:.6;
+  margin-bottom:1.5rem;
+  padding-bottom:1.2rem;
+  border-bottom:1px solid var(--border);
+}
+
+.guide-q-list{list-style:none;display:flex;flex-direction:column;gap:.85rem}
+.guide-q-item{display:flex;gap:.75rem;align-items:flex-start}
+.guide-q-num{
+  width:18px;height:18px;border-radius:50%;
+  border:1px solid var(--border);
+  font-size:.5rem;color:var(--oracle);opacity:.45;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:.08rem;
+  transition:border-color .3s,opacity .3s;
+}
+.guide-q-item.done .guide-q-num{
+  border-color:rgba(200,176,154,.5);
+  background:rgba(200,176,154,.08);opacity:.8;
+}
+.guide-q-text{
+  font-size:.58rem;line-height:1.55;color:var(--parchment);opacity:.5;
+  transition:opacity .3s;
+}
+.guide-q-item.done .guide-q-text{opacity:.3;text-decoration:line-through;text-decoration-color:rgba(200,176,154,.2)}
+.guide-q-label{
+  display:block;font-size:.47rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--oracle);opacity:.35;margin-bottom:.25rem;
+}
+
+/* ─── Controls ─────────────────────────────────────────────────────────── */
+.controls{margin-top:1.5rem;display:flex;gap:.75rem}
+.btn{
+  flex:1;padding:.75rem 1rem;border:1px solid var(--border);
+  border-radius:10px;background:transparent;color:var(--parchment);
+  font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.06em;
+  cursor:pointer;transition:all .2s;
+}
+.btn:hover{border-color:var(--border-hi);background:rgba(200,176,154,.04)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-end{border-color:rgba(255,100,100,.2);color:rgba(255,150,150,.8)}
+.btn-end:hover{background:rgba(255,100,100,.08);border-color:rgba(255,100,100,.3)}
+.btn-end.ending{opacity:.5;cursor:default}
+
+/* ─── Overlay ─────────────────────────────────────────────────────────── */
+.overlay{
+  position:fixed;inset:0;background:rgba(10,10,15,.95);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:100;transition:opacity .3s;
+}
+.overlay.hidden{opacity:0;pointer-events:none}
+.overlay-status{font-size:.7rem;color:var(--oracle);opacity:.7;letter-spacing:.06em}
+
+/* ─── Waveform ─────────────────────────────────────────────────────────── */
+.waveform{
+  display:flex;align-items:center;gap:3px;height:16px;margin-left:.5rem;opacity:0;transition:opacity .3s
+}
+.waveform.speaking{opacity:.6}
+.wave-bar{width:3px;background:var(--oracle);border-radius:2px;animation:wave .8s ease-in-out infinite}
+.wave-bar:nth-child(1){height:8px;animation-delay:0s}
+.wave-bar:nth-child(2){height:12px;animation-delay:.1s}
+.wave-bar:nth-child(3){height:6px;animation-delay:.2s}
+.wave-bar:nth-child(4){height:14px;animation-delay:.3s}
+.wave-bar:nth-child(5){height:10px;animation-delay:.4s}
+@keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="main-col">
+<div class="wrap">
+  <header>
+    <a href="/" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back
+    </a>
+    <h1>Onboarding</h1>
+    <p class="subtitle">Eight questions to know you</p>
+  </header>
+
+  <div class="call-card">
+    <div class="call-header">
+      <div class="caller-info">
+        <div class="caller-avatar">R</div>
+        <div>
+          <div class="caller-name">Recall</div>
+          <div class="caller-role">Onboarding Guide</div>
+        </div>
+      </div>
+      <div class="status-row">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">Connecting</span>
+        <span class="timer" id="timer">0:00</span>
+        <div class="waveform" id="waveform">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="transcript-container">
+      <div class="transcript-header">
+        <span class="transcript-title">Conversation</span>
+      </div>
+      <div class="transcript-body" id="transcriptBody">
+        <div class="empty-state" id="emptyState">Connecting to Recall...</div>
+      </div>
+      <div class="thinking" id="thinking">
+        <span class="think-dot"></span>
+        <span class="think-dot"></span>
+        <span class="think-dot"></span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-end" id="btnEnd" onclick="endCall()">End onboarding</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- .wrap -->
+</div><!-- .main-col -->
+
+<!-- ─── Guide sidebar ─────────────────────────────────────────────────── -->
+<aside class="guide-panel" id="guidePanel">
+  <div class="guide-toggle">
+    <button class="guide-toggle-btn" onclick="toggleGuide()" title="Toggle guide">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" id="guideIcon">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+      <span class="guide-toggle-label">Hide guide</span>
+    </button>
+  </div>
+  <div class="guide-body">
+    <p class="guide-section-title">What to expect</p>
+    <p class="guide-intro">Recall will ask you eight questions — a real conversation, not a form. Speak naturally. There are no wrong answers. Everything you share stays with your future self.</p>
+
+    <p class="guide-section-title">The eight questions</p>
+    <ol class="guide-q-list" id="guideQList">
+      <li class="guide-q-item" data-q="1">
+        <span class="guide-q-num">1</span>
+        <span class="guide-q-text"><span class="guide-q-label">Open door</span>What's going on for you right now?</span>
+      </li>
+      <li class="guide-q-item" data-q="2">
+        <span class="guide-q-num">2</span>
+        <span class="guide-q-text"><span class="guide-q-label">Peak experience</span>Tell me about a time you felt genuinely like yourself.</span>
+      </li>
+      <li class="guide-q-item" data-q="3">
+        <span class="guide-q-num">3</span>
+        <span class="guide-q-text"><span class="guide-q-label">The gap</span>What's the distance between that and where you are today?</span>
+      </li>
+      <li class="guide-q-item" data-q="4">
+        <span class="guide-q-num">4</span>
+        <span class="guide-q-text"><span class="guide-q-label">Miracle question</span>Imagine you wake up 5 years from now. What's different?</span>
+      </li>
+      <li class="guide-q-item" data-q="5">
+        <span class="guide-q-num">5</span>
+        <span class="guide-q-text"><span class="guide-q-label">The obstacle</span>What pattern keeps getting in your way?</span>
+      </li>
+      <li class="guide-q-item" data-q="6">
+        <span class="guide-q-num">6</span>
+        <span class="guide-q-text"><span class="guide-q-label">Values</span>When you strip everything away — what actually matters most?</span>
+      </li>
+      <li class="guide-q-item" data-q="7">
+        <span class="guide-q-num">7</span>
+        <span class="guide-q-text"><span class="guide-q-label">The fear</span>What would you lose if things actually changed?</span>
+      </li>
+      <li class="guide-q-item" data-q="8">
+        <span class="guide-q-num">8</span>
+        <span class="guide-q-text"><span class="guide-q-label">Readiness</span>Scale of 1–10, how ready are you to do something different?</span>
+      </li>
+    </ol>
+  </div>
+</aside>
+
+</div><!-- .page -->
+
+<div class="overlay" id="overlay">
+  <div class="overlay-status" id="overlayStatus">Starting...</div>
+</div>
+
+<audio id="remoteAudio" autoplay></audio>
+
+<script src="/static/call.js"></script>
+<script>
+/* ─── Guide sidebar toggle ────────────────────────────────────────────────── */
+const panel = document.getElementById('guidePanel');
+const guideIcon = document.getElementById('guideIcon');
+const guideLabel = panel.querySelector('.guide-toggle-label');
+
+function toggleGuide() {
+  const collapsed = panel.classList.toggle('collapsed');
+  localStorage.setItem('ob_guide_collapsed', collapsed ? '1' : '0');
+  guideIcon.innerHTML = collapsed
+    ? '<path d="M15 18l-6-6 6-6"/>'
+    : '<path d="M9 18l6-6-6-6"/>';
+  guideLabel.textContent = collapsed ? '' : 'Hide guide';
+}
+
+(function initGuide() {
+  if (localStorage.getItem('ob_guide_collapsed') === '1') {
+    panel.classList.add('collapsed');
+    guideIcon.innerHTML = '<path d="M15 18l-6-6 6-6"/>';
+    guideLabel.textContent = '';
+  }
+})();
+
+/* Track how many user turns have been spoken to mark questions done */
+let userTurnCount = 0;
+const qItems = document.querySelectorAll('.guide-q-item');
+const origObserver = window._transcriptCallback;
+function markNextDone() {
+  userTurnCount++;
+  const idx = userTurnCount - 1;
+  if (idx < qItems.length) qItems[idx].classList.add('done');
+}
+/* Hook into transcript SSE via MutationObserver on transcript body */
+(function() {
+  const body = document.getElementById('transcriptBody');
+  if (!body) return;
+  const mo = new MutationObserver(muts => {
+    for (const m of muts) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType === 1 && node.classList.contains('turn') && node.classList.contains('user')) {
+          markNextDone();
+        }
+      }
+    }
+  });
+  mo.observe(body, { childList: true });
+})();
+</script>
+</body>
+</html>

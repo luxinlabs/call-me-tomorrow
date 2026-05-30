@@ -13,6 +13,7 @@ Psychology sequence (evidence-based order):
 Tone: curious friend, not intake form.
 """
 
+import asyncio
 import os
 
 from loguru import logger
@@ -34,9 +35,10 @@ from pipecat.transports.base_transport import BaseTransport
 from pipecat.workers.runner import WorkerRunner
 
 from channels import Channel, get_channel
-from memory import complete_onboarding, create_user, save_session, update_session_transcript
+from memory import complete_onboarding, create_user, save_personality_profile, save_session, update_session_transcript
 from nemotron_llm import VLLMOpenAILLMService
 from nvidia_stt import NVidiaWebSocketSTTService
+from personality import generate_personality_profile
 from rag import ingest_session
 from suggestions import get_suggestion
 from transcript import TranscriptLogger
@@ -82,6 +84,18 @@ TONE — this is everything:
 - If they give a short answer, reflect once: "Say more?" or "What does that look like for you?"
 - Never rush. Silence is okay. Let them find their words.
 
+OPENING (when the caller connects):
+Start with a warm introduction that explains what this is and why we're having this conversation. Say something like:
+
+"Hey there. I'm Recall — I'm here to get to know you a bit before you talk with Future Me. \
+Here's the thing: Future Me is... well, you, but from {time_horizon} years out. And to actually \
+be helpful, they need to understand where you are right now — not just what you think you should say, \
+but what's actually going on. So I'm going to ask you eight questions. Not a form, not a quiz — \
+a conversation. We'll talk about where you've been, where you're stuck, what you actually care about. \
+It takes about 15 minutes, and everything you say stays with you. Ready to start?"
+
+Then move into Q1.
+
 THE SEQUENCE (work through these naturally — don't announce you're asking Q3 or Q5):
 
 Q1 (Open door — MI): "{q1}"
@@ -97,8 +111,13 @@ You also need their name — weave it in naturally after Q1: "And what's your na
 or "What should I call you?" Don't make it feel like form-filling.
 
 AFTER Q8:
-Say: "Thank you — I mean that. That's not easy to sit with." \
-Pause a beat, then: "I'm going to hand you over to Future Me now. Give me just a moment."
+Close with a brief summary of what we covered and transition to Future Me. Say something like:
+
+"Thank you — I mean that. That's not easy to sit with. So here's what I heard: you shared where you are right now, \
+what matters to you, what's getting in the way, and honestly, how ready you are to move. That's a lot. \
+Future Me now has what they need to meet you where you actually are — not where you think you should be. \
+I'm going to hand you over to them now. Give me just a moment."
+
 Then call save_profile.
 
 TOOLS:
@@ -124,6 +143,7 @@ async def run_onboarding(
     logger.info(f"Onboarding: channel={channel_id} horizon={time_horizon} phone={phone}")
 
     transcript_logger = TranscriptLogger(bot_name="Recall", session_key=session_key)
+    profile_saved = False
 
     async def save_profile(
         params: FunctionCallParams,
@@ -202,12 +222,31 @@ async def run_onboarding(
             metadata={"type": "onboarding", "name": name},
         )
 
+        # Generate rich personality profile in background — doesn't block bot response
+        async def _build_personality():
+            try:
+                profile = await generate_personality_profile(answers)
+                if profile:
+                    save_personality_profile(user_id, profile)
+                    logger.info(f"Personality profile saved for user {user_id}")
+            except Exception as e:
+                logger.warning(f"Personality profile generation failed: {e}")
+        asyncio.create_task(_build_personality())
+
+        nonlocal profile_saved
+        profile_saved = True
         logger.info(f"Profile saved: user_id={user_id} session_id={session_id}")
         await params.result_callback({
             "ok": True,
             "user_id": user_id,
             "session_id": session_id,
-            "instruction": "Profile saved. Now say a warm single-sentence closing. Then call end_call.",
+            "instruction": (
+                "Profile saved. Now close with genuine warmth — two or three sentences, no more. "
+                "Reflect one specific thing they said that stayed with you. "
+                "Tell them what's about to happen: Future Me now has everything they need, "
+                "and they'll be in touch. Make it feel like the end of a real conversation, not a sign-off. "
+                "Then call end_call."
+            ),
         })
 
     async def offer_suggestion(
@@ -236,6 +275,26 @@ async def run_onboarding(
 
     async def end_call(params: FunctionCallParams) -> None:
         """End the call. Only call after save_profile has returned and you've said goodbye."""
+        if not profile_saved:
+            # LLM skipped save_profile — save transcript so the conversation isn't lost
+            try:
+                transcript_text = transcript_logger.as_text(
+                    context=context,
+                    header=f"Onboarding (partial) — {channel.name}",
+                )
+                if transcript_text.strip():
+                    session_id = save_session(
+                        phone=phone,
+                        channel=channel_id,
+                        archetype="onboarding-partial",
+                        answers={},
+                        action_plan={},
+                        user_id=None,
+                    )
+                    update_session_transcript(session_id, transcript_text)
+                    logger.info(f"Fallback transcript saved: session_id={session_id}")
+            except Exception as e:
+                logger.warning(f"Fallback save in end_call failed: {e}")
         await params.llm.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
         await params.result_callback(
             {"ok": True}, properties=FunctionCallResultProperties(run_llm=False)
@@ -310,6 +369,24 @@ async def run_onboarding(
 
     @transport.event_handler("on_client_disconnected")
     async def on_disconnected(transport, client):
+        try:
+            transcript_text = transcript_logger.as_text(
+                context=context,
+                header=f"Onboarding (partial) — {channel.name}",
+            )
+            if transcript_text.strip():
+                session_id = save_session(
+                    phone=phone,
+                    channel=channel_id,
+                    archetype="onboarding-partial",
+                    answers={},
+                    action_plan={},
+                    user_id=None,
+                )
+                update_session_transcript(session_id, transcript_text)
+                logger.info(f"Partial onboarding transcript saved: session_id={session_id}")
+        except Exception as e:
+            logger.warning(f"Could not save partial transcript: {e}")
         await worker.cancel()
 
     runner = WorkerRunner(handle_sigint=False)

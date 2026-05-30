@@ -39,6 +39,7 @@ from channels import get_channel
 from memory import get_session, get_user_by_phone, init_db
 from pre_call_analysis import run_pre_call_analysis
 from transcript import turns_to_html
+from transcript_store import _live_transcripts, push_live_turn as _push_live_turn
 
 load_dotenv(override=True)
 
@@ -50,6 +51,16 @@ app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 @app.get("/", include_in_schema=False)
 async def landing():
     return FileResponse(os.path.join(_STATIC, "index.html"))
+
+
+@app.get("/onboarding", include_in_schema=False)
+async def onboarding():
+    return FileResponse(os.path.join(_STATIC, "onboarding.html"))
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard():
+    return FileResponse(os.path.join(_STATIC, "dashboard.html"))
 
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -72,7 +83,7 @@ async def list_sessions():
         conn = sqlite3.connect(db)
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            "SELECT s.id, u.name, s.channel, s.archetype, s.status, s.created_at, s.cekura_score "
+            "SELECT s.id, s.phone, s.user_id, u.name, s.channel, s.archetype, s.status, s.created_at, s.cekura_score "
             "FROM sessions s LEFT JOIN users u ON s.user_id=u.id "
             "ORDER BY s.id DESC LIMIT 20"
         ).fetchall()
@@ -92,9 +103,6 @@ async def trigger_feedback_loop():
 # Stores pending call config until Twilio's WebSocket connects.
 _pending_calls: dict[str, dict] = {}
 
-# Live transcript store: session_id → list of {role, speaker, text}
-# Written by bot pipeline, read by SSE endpoint.
-_live_transcripts: dict[str, list[dict]] = {}
 
 
 async def _get_public_url() -> str:
@@ -379,6 +387,43 @@ async def profile_page(phone: str):
         else:
             session_blocks += f'<section class="transcript-block"><h3 class="transcript-title">{title}</h3><p class="no-transcript">Transcript not yet available.</p></section>'
 
+    personality = user.get("personality_data") or {}
+    if isinstance(personality, str):
+        import json as _j
+        personality = _j.loads(personality) if personality else {}
+
+    def ptag(label, value, italic=False):
+        if not value:
+            return ""
+        v = f"<em>{value}</em>" if italic else value
+        return f'<div class="ptag"><span class="ptag-label">{label}</span><span class="ptag-val">{v}</span></div>'
+
+    personality_html = ""
+    if personality:
+        personality_html = f"""
+  <div class="divider"></div>
+  <p class="section-label">Personality profile</p>
+  <div class="personality-grid">
+    <div class="p-card p-card-accent">
+      <div class="p-card-label">Type</div>
+      <div class="p-card-value p-big">{personality.get('mbti','—')}</div>
+      <div class="p-card-sub">{personality.get('mbti_note','')}</div>
+    </div>
+    <div class="p-card p-card-accent">
+      <div class="p-card-label">Archetype</div>
+      <div class="p-card-value">{personality.get('archetype','—')}</div>
+      <div class="p-card-sub">{personality.get('energy_line','')}</div>
+    </div>
+  </div>
+  <div class="p-rows">
+    {ptag("Where you are now", personality.get('now',''), italic=True)}
+    {ptag("Where you're heading", personality.get('becoming',''), italic=True)}
+    {ptag("Core tension", personality.get('core_tension',''))}
+    {ptag("Superpower", personality.get('superpower',''))}
+    {ptag("Blind spot", personality.get('blind_spot',''))}
+    {ptag("Uncomfortable truth", personality.get('uncomfortable_truth',''), italic=True)}
+  </div>"""
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -387,29 +432,44 @@ async def profile_page(phone: str):
   <title>Profile — {user.get('name','User')}</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
   <style>
-    :root {{ --void:#0a0a0f; --oracle:#c8b09a; --parchment:#e8e4dc; --dusk:#1c1c22; --answer:#5ab87a; --border:rgba(200,176,154,0.12); }}
+    :root {{ --void:#0a0a0f; --oracle:#c8b09a; --parchment:#e8e4dc; --answer:#5ab87a; --border:rgba(200,176,154,0.12); }}
     *,*::before,*::after {{ box-sizing:border-box; margin:0; padding:0; }}
     body {{ background:var(--void); color:var(--parchment); font-family:'DM Mono',monospace; font-weight:300; min-height:100vh; }}
     .page {{ max-width:700px; margin:0 auto; padding:3rem 2rem 6rem; }}
     .back {{ font-size:0.65rem; letter-spacing:0.1em; color:var(--oracle); opacity:0.6; text-decoration:none; display:inline-block; margin-bottom:2.5rem; }}
     .back:hover {{ opacity:1; }}
-    .profile-name {{ font-family:'Cormorant Garamond',serif; font-size:3rem; font-weight:300; color:var(--parchment); line-height:1; }}
-    .profile-meta {{ margin-top:0.5rem; font-size:0.65rem; letter-spacing:0.08em; color:var(--oracle); opacity:0.7; }}
-    .profile-summary {{ margin-top:1.25rem; font-size:0.78rem; line-height:1.75; opacity:0.7; max-width:500px; }}
+    .profile-name {{ font-family:'Cormorant Garamond',serif; font-size:3.5rem; font-weight:300; color:var(--parchment); line-height:1; }}
+    .profile-meta {{ margin-top:0.5rem; font-size:0.62rem; letter-spacing:0.08em; color:var(--oracle); opacity:0.6; }}
+    .profile-summary {{ margin-top:1.25rem; font-size:0.76rem; line-height:1.8; opacity:0.6; max-width:540px; }}
     .divider {{ width:100%; height:1px; background:var(--border); margin:2.5rem 0; }}
-    .section-label {{ font-size:0.55rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--oracle); opacity:0.5; margin-bottom:1.5rem; }}
+    .section-label {{ font-size:0.52rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--oracle); opacity:0.45; margin-bottom:1.25rem; }}
+    /* ── Personality grid ── */
+    .personality-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1.5rem; }}
+    .p-card {{ border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.2rem; }}
+    .p-card-accent {{ background:rgba(200,176,154,0.04); border-color:rgba(200,176,154,0.18); }}
+    .p-card-label {{ font-size:0.5rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--oracle); opacity:0.45; margin-bottom:0.3rem; }}
+    .p-card-value {{ font-family:'Cormorant Garamond',serif; font-size:1.4rem; font-weight:300; color:var(--parchment); line-height:1.1; margin-bottom:0.4rem; }}
+    .p-big {{ font-size:2.2rem; letter-spacing:0.04em; }}
+    .p-card-sub {{ font-size:0.65rem; line-height:1.6; opacity:0.55; }}
+    .p-rows {{ display:flex; flex-direction:column; gap:0; }}
+    .ptag {{ display:grid; grid-template-columns:140px 1fr; gap:1rem; padding:0.8rem 0; border-top:1px solid var(--border); align-items:baseline; }}
+    .ptag:last-child {{ border-bottom:1px solid var(--border); }}
+    .ptag-label {{ font-size:0.5rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--oracle); opacity:0.4; padding-top:0.1rem; }}
+    .ptag-val {{ font-size:0.74rem; line-height:1.7; opacity:0.8; }}
+    .ptag-val em {{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:0.9rem; opacity:0.9; }}
+    /* ── Transcripts ── */
     .transcript-block {{ margin-bottom:2.5rem; border:1px solid var(--border); border-radius:12px; overflow:hidden; }}
-    .transcript-title {{ font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--oracle); opacity:0.6; padding:1rem 1.25rem 0.75rem; border-bottom:1px solid var(--border); }}
+    .transcript-title {{ font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--oracle); opacity:0.55; padding:1rem 1.25rem 0.75rem; border-bottom:1px solid var(--border); }}
     .transcript-turns {{ padding:1.25rem; display:flex; flex-direction:column; gap:1rem; }}
     .turn {{ display:flex; flex-direction:column; gap:0.25rem; }}
-    .speaker {{ font-size:0.58rem; letter-spacing:0.12em; text-transform:uppercase; opacity:0.45; }}
+    .speaker {{ font-size:0.55rem; letter-spacing:0.12em; text-transform:uppercase; opacity:0.4; }}
     .turn-user .speaker {{ color:var(--parchment); }}
     .turn-bot .speaker {{ color:var(--oracle); }}
-    .turn p {{ font-size:0.78rem; line-height:1.65; }}
-    .turn-user p {{ opacity:0.85; }}
-    .turn-bot p {{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:0.95rem; color:var(--parchment); opacity:0.9; }}
-    .no-transcript {{ font-size:0.7rem; opacity:0.4; padding:1rem 1.25rem 1.25rem; }}
-    .dl-link {{ display:inline-block; margin:0 1.25rem 1.25rem; font-size:0.6rem; letter-spacing:0.1em; color:var(--answer); text-decoration:none; opacity:0.7; }}
+    .turn p {{ font-size:0.76rem; line-height:1.65; }}
+    .turn-user p {{ opacity:0.82; }}
+    .turn-bot p {{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:0.92rem; opacity:0.9; }}
+    .no-transcript {{ font-size:0.7rem; opacity:0.35; padding:1rem 1.25rem 1.25rem; }}
+    .dl-link {{ display:inline-block; margin:0 1.25rem 1.25rem; font-size:0.58rem; letter-spacing:0.1em; color:var(--answer); text-decoration:none; opacity:0.65; }}
     .dl-link:hover {{ opacity:1; }}
   </style>
 </head>
@@ -417,8 +477,9 @@ async def profile_page(phone: str):
 <div class="page">
   <a href="/" class="back">← Call Me Tomorrow</a>
   <div class="profile-name">{user.get('name','Unknown')}</div>
-  <div class="profile-meta">{user.get('role','')} &nbsp;·&nbsp; {', '.join(user.get('channels',[]))} &nbsp;·&nbsp; {user.get('time_horizon',5)} year horizon</div>
+  <div class="profile-meta">{user.get('role','')} &nbsp;·&nbsp; career &nbsp;·&nbsp; {user.get('time_horizon',5)}-year horizon</div>
   <p class="profile-summary">{user.get('profile_summary','')}</p>
+  {personality_html}
   <div class="divider"></div>
   <p class="section-label">Call history</p>
   {session_blocks if session_blocks else '<p style="font-size:0.75rem;opacity:0.4">No sessions yet.</p>'}
@@ -439,10 +500,10 @@ async def bot(runner_args: RunnerArguments) -> None:
     time_horizon = int(body.get("time_horizon", 5))
     phone = body.get("phone") or None
 
-    # Route: onboarding for new users OR if explicitly requested
+    # Route: onboarding only when explicitly requested via /onboarding page
     force_onboarding = body.get("force_onboarding", False)
     user = get_user_by_phone(phone) if phone else None
-    is_new = force_onboarding or not user or not user.get("onboarding_done")
+    is_new = bool(force_onboarding)
 
     logger.info(
         f"Call: channel={channel_id} horizon={time_horizon} "

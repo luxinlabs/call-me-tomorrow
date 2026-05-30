@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Sessions — Call Me Tomorrow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --void:#0a0a0f;
+  --oracle:#c8b09a;
+  --parchment:#e8e4dc;
+  --dusk:#161619;
+  --border:rgba(200,176,154,.10);
+  --border-hi:rgba(200,176,154,.28);
+  --answer:#5ab87a;
+}
+html{scroll-behavior:smooth}
+body{background:var(--void);color:var(--parchment);font-family:'DM Mono',monospace;font-weight:300;min-height:100vh}
+
+.wrap{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.back-link{display:inline-flex;align-items:center;gap:.5rem;color:var(--oracle);opacity:.6;text-decoration:none;font-size:.62rem;letter-spacing:.1em;transition:opacity .2s}
+.back-link:hover{opacity:1}
+.back-link svg{width:16px;height:16px}
+
+h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(2rem,6vw,2.8rem);
+  font-weight:300;line-height:.9;letter-spacing:-.02em;
+}
+h1 em{font-style:italic;color:var(--oracle)}
+
+.refresh-btn{
+  padding:.5rem 1rem;border:1px solid var(--border);
+  border-radius:8px;background:transparent;color:var(--parchment);
+  font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.06em;
+  cursor:pointer;transition:all .2s;
+}
+.refresh-btn:hover{border-color:var(--border-hi);background:rgba(200,176,154,.04)}
+
+/* ─── Stats bar ─────────────────────────────────────────────────────────── */
+.stats-bar{
+  display:flex;gap:1.5rem;margin-bottom:2rem;
+  padding:1rem 1.2rem;border:1px solid var(--border);border-radius:10px;
+  background:rgba(22,22,25,.4);
+}
+.stat{display:flex;flex-direction:column;gap:.2rem}
+.stat-label{font-size:.52rem;color:var(--oracle);opacity:.5;letter-spacing:.08em;text-transform:uppercase}
+.stat-value{font-size:.78rem;color:var(--parchment)}
+
+/* ─── Session list ─────────────────────────────────────────────────────── */
+.session-list{display:flex;flex-direction:column;gap:.75rem}
+
+.session-card{
+  border:1px solid var(--border);border-radius:12px;
+  background:rgba(22,22,25,.4);
+  padding:1.2rem 1.4rem;
+  position:relative;overflow:hidden;
+  transition:border-color .2s,background .2s;
+}
+.session-card:hover{border-color:var(--border-hi);background:rgba(22,22,25,.6)}
+
+.session-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.8rem}
+.session-id{font-size:.56rem;color:var(--oracle);opacity:.4;letter-spacing:.06em;font-family:'DM Mono',monospace}
+.session-status{
+  padding:.25rem .6rem;border-radius:6px;font-size:.52rem;letter-spacing:.06em;text-transform:uppercase;
+}
+.session-status.active{background:rgba(90,184,122,.12);color:var(--answer)}
+.session-status.completed{background:rgba(200,176,154,.12);color:var(--oracle)}
+
+.session-info{display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:.8rem}
+.info-item{display:flex;flex-direction:column;gap:.2rem}
+.info-label{font-size:.5rem;color:var(--oracle);opacity:.4;letter-spacing:.08em;text-transform:uppercase}
+.info-value{font-size:.64rem;color:var(--parchment)}
+
+.session-actions{display:flex;gap:.6rem;margin-top:.8rem}
+.action-btn{
+  padding:.5rem .9rem;border:1px solid var(--border);
+  border-radius:8px;background:transparent;color:var(--parchment);
+  font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.04em;
+  cursor:pointer;transition:all .2s;text-decoration:none;
+}
+.action-btn:hover{border-color:var(--border-hi);background:rgba(200,176,154,.04)}
+
+/* ─── Empty state ─────────────────────────────────────────────────────── */
+.empty-state{text-align:center;padding:4rem 1rem;color:var(--oracle);opacity:.3;font-size:.64rem;letter-spacing:.04em}
+
+/* ─── Loading ─────────────────────────────────────────────────────────── */
+.loading{text-align:center;padding:2rem;color:var(--oracle);opacity:.5;font-size:.64rem;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <a href="/" class="back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back
+      </a>
+      <h1 style="margin-top:1rem">Sessions</h1>
+    </div>
+    <button class="refresh-btn" onclick="loadSessions()">Refresh</button>
+  </header>
+
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat">
+      <span class="stat-label">Total</span>
+      <span class="stat-value" id="statTotal">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Active</span>
+      <span class="stat-value" id="statActive">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Completed</span>
+      <span class="stat-value" id="statCompleted">0</span>
+    </div>
+  </div>
+
+  <div class="session-list" id="sessionList">
+    <div class="loading">Loading sessions...</div>
+  </div>
+</div>
+
+<script>
+async function loadSessions() {
+  const list = document.getElementById('sessionList');
+  const stats = document.getElementById('statsBar');
+  list.innerHTML = '<div class="loading">Loading sessions...</div>';
+
+  try {
+    const res = await fetch('/sessions');
+    if (!res.ok) throw new Error(`/sessions → ${res.status}`);
+    const sessions = await res.json();
+
+    if (!sessions || sessions.length === 0) {
+      list.innerHTML = '<div class="empty-state">No sessions yet. Start a call to see it here.</div>';
+      stats.style.display = 'none';
+      return;
+    }
+
+    // Update stats
+    const total = sessions.length;
+    const active = sessions.filter(s => s.status === 'active').length;
+    const completed = sessions.filter(s => s.status === 'completed').length;
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statActive').textContent = active;
+    document.getElementById('statCompleted').textContent = completed;
+    stats.style.display = 'flex';
+
+    // Render sessions
+    list.innerHTML = sessions.map(s => `
+      <div class="session-card">
+        <div class="session-header">
+          <span class="session-id">#${s.id}</span>
+          <span class="session-status ${s.status}">${s.status}</span>
+        </div>
+        <div class="session-info">
+          <div class="info-item">
+            <span class="info-label">Caller</span>
+            <span class="info-value">${s.name || 'Anonymous'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Phone</span>
+            <span class="info-value">${s.phone || '—'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Channel</span>
+            <span class="info-value">${s.channel || 'life'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Archetype</span>
+            <span class="info-value">${s.archetype || '—'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Date</span>
+            <span class="info-value">${new Date(s.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+        <div class="session-actions">
+          <a href="/transcript/${s.id}" class="action-btn">View transcript</a>
+          <a href="/transcript/${s.id}/download" class="action-btn">Download</a>
+          ${s.phone ? `<a href="/profile/${encodeURIComponent(s.phone)}" class="action-btn">View profile</a>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="empty-state">Failed to load sessions: ${err.message}</div>`;
+    stats.style.display = 'none';
+  }
+}
+
+loadSessions();
+</script>
+</body>
+</html>

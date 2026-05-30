@@ -172,12 +172,9 @@ class TranscriptLogger:
 
         on_turn = None
         if session_key:
-            try:
-                from bot import _push_live_turn
-                def on_turn(role, speaker, text):
-                    _push_live_turn(session_key, role, speaker, text)
-            except ImportError:
-                pass
+            from transcript_store import push_live_turn as _push_live_turn
+            def on_turn(role, speaker, text):
+                _push_live_turn(session_key, role, speaker, text)
 
         self.user_logger = _UserTurnLogger(on_turn=on_turn)
         self.bot_logger = _BotTurnLogger(self._bot_turns, bot_name, on_turn=on_turn)

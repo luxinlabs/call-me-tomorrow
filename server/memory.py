@@ -21,6 +21,67 @@ def _conn() -> sqlite3.Connection:
     return conn
 
 
+def _maybe_add_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _migrate_sessions_table() -> None:
+    """Ensure the sessions table has all expected columns (backfills older DBs)."""
+    with _conn() as conn:
+        _maybe_add_column(conn, "sessions", "user_id", "INTEGER REFERENCES users(id)")
+        _maybe_add_column(conn, "sessions", "channel", "TEXT DEFAULT 'life'")
+
+        pragma_rows = list(conn.execute("PRAGMA table_info(sessions)"))
+        names = [row[1] for row in pragma_rows]
+        needs_rebuild = "INTEGER" in names or "TEXT" in names
+
+        if needs_rebuild:
+            existing_rows = [dict(row) for row in conn.execute("SELECT * FROM sessions")]
+            conn.execute("DROP TABLE sessions")
+            conn.executescript("""
+                CREATE TABLE sessions (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id         INTEGER REFERENCES users(id),
+                    phone           TEXT,
+                    channel         TEXT    DEFAULT 'life',
+                    archetype       TEXT,
+                    answers         TEXT    DEFAULT '{}',
+                    action_plan     TEXT    DEFAULT '{}',
+                    transcript      TEXT    DEFAULT '',
+                    status          TEXT    DEFAULT 'active',
+                    created_at      TEXT    DEFAULT (datetime('now')),
+                    completed_at    TEXT,
+                    cekura_score    REAL
+                );
+            """)
+
+            for row in existing_rows:
+                row_user_id = row.get("user_id") or row.get("INTEGER")
+                row_channel = row.get("channel") or row.get("TEXT") or "life"
+                conn.execute(
+                    "INSERT INTO sessions (id, user_id, phone, channel, archetype, answers, action_plan, transcript, status, created_at, completed_at, cekura_score) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        row.get("id"),
+                        row_user_id,
+                        row.get("phone"),
+                        row_channel,
+                        row.get("archetype"),
+                        row.get("answers", "{}"),
+                        row.get("action_plan", "{}"),
+                        row.get("transcript", ""),
+                        row.get("status", "active"),
+                        row.get("created_at"),
+                        row.get("completed_at"),
+                        row.get("cekura_score"),
+                    ),
+                )
+
+        conn.commit()
+
+
 def init_db() -> None:
     with _conn() as conn:
         conn.executescript("""
@@ -33,6 +94,7 @@ def init_db() -> None:
                 time_horizon    INTEGER DEFAULT 5,
                 onboarding_done INTEGER DEFAULT 0,
                 profile_summary TEXT    DEFAULT '',
+                personality_data TEXT   DEFAULT '{}',
                 created_at      TEXT    DEFAULT (datetime('now'))
             );
 
@@ -75,6 +137,13 @@ def init_db() -> None:
             );
         """)
 
+    # Backfill columns if the DB was created before channel/user_id existed
+    _migrate_sessions_table()
+    # Backfill personality_data column if missing
+    with _conn() as conn:
+        _maybe_add_column(conn, "users", "personality_data", "TEXT DEFAULT '{}'")
+        conn.commit()
+
 
 # ── Users ─────────────────────────────────────────────────────────────────────
 
@@ -85,6 +154,18 @@ def get_user_by_phone(phone: str) -> Optional[dict]:
             return None
         d = dict(row)
         d["channels"] = json.loads(d.get("channels") or '["life"]')
+        d["personality_data"] = json.loads(d.get("personality_data") or "{}")
+        return d
+
+
+def get_user(user_id: int) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["channels"] = json.loads(d.get("channels") or '["life"]')
+        d["personality_data"] = json.loads(d.get("personality_data") or "{}")
         return d
 
 
@@ -101,6 +182,15 @@ def create_user(phone: str, name: str, role: str, time_horizon: int, channel: st
         return row[0]
 
 
+def save_personality_profile(user_id: int, data: dict) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET personality_data=? WHERE id=?",
+            (json.dumps(data), user_id),
+        )
+        conn.commit()
+
+
 def complete_onboarding(user_id: int, profile_summary: str) -> None:
     with _conn() as conn:
         conn.execute(
@@ -108,16 +198,6 @@ def complete_onboarding(user_id: int, profile_summary: str) -> None:
             (profile_summary, user_id),
         )
         conn.commit()
-
-
-def get_user(user_id: int) -> Optional[dict]:
-    with _conn() as conn:
-        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
-        if not row:
-            return None
-        d = dict(row)
-        d["channels"] = json.loads(d.get("channels") or '["life"]')
-        return d
 
 
 # ── Sessions ──────────────────────────────────────────────────────────────────
@@ -158,6 +238,18 @@ def get_session(session_id: int) -> Optional[dict]:
         d["answers"] = json.loads(d.get("answers") or "{}")
         d["action_plan"] = json.loads(d.get("action_plan") or "{}")
         return d
+
+
+def get_onboarding_answers(user_id: int) -> dict:
+    """Return the answers dict from the user's earliest (onboarding) session."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT answers FROM sessions WHERE user_id=? ORDER BY id ASC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        if not row:
+            return {}
+        return json.loads(row[0] or "{}")
 
 
 def get_sessions_for_user(user_id: int, channel: str, limit: int = 5) -> list[dict]:

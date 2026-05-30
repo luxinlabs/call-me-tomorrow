@@ -3,6 +3,7 @@ const params   = new URLSearchParams(location.search);
 const channel  = params.get('channel') || 'career';
 const horizon  = parseInt(params.get('horizon') || '5');
 const phone    = params.get('phone') || '';
+const isOnboarding = location.pathname === '/onboarding';
 
 let sessionKey  = null;
 let peerConn    = null;
@@ -72,7 +73,7 @@ async function startCall() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         transport: 'webrtc',
-        body: { channel, time_horizon: horizon, phone: phone || null, force_onboarding: !phone },
+        body: { channel, time_horizon: horizon, phone: phone || null, force_onboarding: isOnboarding },
       }),
     });
 
@@ -146,19 +147,84 @@ async function startCall() {
 // ─── End call ─────────────────────────────────────────────────────────────
 function endCall() {
   const btn = document.getElementById('btnEnd');
-  btn.textContent = 'Ending...';
-  btn.classList.add('ending');
+  if (btn) { btn.textContent = 'Ending...'; btn.classList.add('ending'); }
 
   if (peerConn) { peerConn.close(); peerConn = null; }
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); }
   if (timerInterval) clearInterval(timerInterval);
   if (sseSource) sseSource.close();
 
-  document.getElementById('statusDot').classList.remove('active');
-  document.getElementById('statusText').textContent = 'Ended';
-  document.getElementById('waveform').classList.remove('speaking');
+  const dot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const waveform = document.getElementById('waveform');
+  if (dot) dot.classList.remove('active');
+  if (statusText) statusText.textContent = 'Ended';
+  if (waveform) waveform.classList.remove('speaking');
 
-  setTimeout(() => { window.location.href = '/'; }, 1500);
+  showEnvelopeAnimation();
+}
+
+function showEnvelopeAnimation() {
+  const el = document.createElement('div');
+  el.id = 'envelopeOverlay';
+  el.style.cssText = `
+    position:fixed;inset:0;background:rgba(10,10,15,.96);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    z-index:999;opacity:0;transition:opacity .5s ease;
+  `;
+  el.innerHTML = `
+    <div id="envelopeWrap" style="position:relative;width:120px;height:90px;perspective:400px">
+      <svg id="envelope" viewBox="0 0 120 90" fill="none" xmlns="http://www.w3.org/2000/svg"
+           style="width:120px;height:90px;filter:drop-shadow(0 8px 32px rgba(200,176,154,.18))">
+        <!-- Envelope body -->
+        <rect x="4" y="20" width="112" height="66" rx="6" fill="rgba(22,22,25,.9)" stroke="rgba(200,176,154,.3)" stroke-width="1.2"/>
+        <!-- Bottom flap (static) -->
+        <path d="M4 82 L60 50 L116 82" fill="rgba(200,176,154,.06)" stroke="rgba(200,176,154,.18)" stroke-width="1"/>
+        <!-- Left/right sides -->
+        <path d="M4 20 L60 54" stroke="rgba(200,176,154,.18)" stroke-width="1"/>
+        <path d="M116 20 L60 54" stroke="rgba(200,176,154,.18)" stroke-width="1"/>
+        <!-- Top flap -->
+        <path id="topFlap" d="M4 20 L60 54 L116 20" fill="rgba(200,176,154,.08)" stroke="rgba(200,176,154,.25)" stroke-width="1.2"
+              style="transform-origin:60px 20px;transform:rotateX(0deg);transition:transform .6s ease .3s"/>
+        <!-- Wax seal dot -->
+        <circle cx="60" cy="55" r="6" fill="rgba(200,176,154,.25)" stroke="rgba(200,176,154,.4)" stroke-width="1"/>
+        <circle cx="60" cy="55" r="2.5" fill="rgba(200,176,154,.5)"/>
+      </svg>
+    </div>
+    <p id="envMsg" style="margin-top:1.8rem;font-family:'DM Mono',monospace;font-size:.64rem;
+       letter-spacing:.12em;color:rgba(200,176,154,.7);text-transform:uppercase;
+       opacity:0;transition:opacity .5s ease .8s">Sending to Future Me...</p>
+    <p style="margin-top:.6rem;font-family:'DM Mono',monospace;font-size:.54rem;
+       letter-spacing:.06em;color:rgba(200,176,154,.35);
+       opacity:0;transition:opacity .5s ease 1.4s" id="envSub">Your profile is on its way.</p>
+  `;
+  document.body.appendChild(el);
+
+  // Fade in overlay
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    // Fold top flap closed
+    setTimeout(() => {
+      document.getElementById('topFlap').style.transform = 'rotateX(180deg)';
+    }, 400);
+    // Show text
+    setTimeout(() => {
+      document.getElementById('envMsg').style.opacity = '1';
+      document.getElementById('envSub').style.opacity = '1';
+    }, 800);
+    // Fly envelope up and away
+    setTimeout(() => {
+      const wrap = document.getElementById('envelopeWrap');
+      wrap.style.transition = 'transform 1s cubic-bezier(.4,0,.2,1), opacity .8s ease';
+      wrap.style.transform = 'translateY(-80px) scale(.7)';
+      wrap.style.opacity = '0';
+      document.getElementById('envMsg').textContent = 'Delivered.';
+    }, 2200);
+    // Redirect home
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 3600);
+  });
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────
