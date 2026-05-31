@@ -4,7 +4,7 @@
 
 ## 1. What is this?
 
-Call Me Tomorrow is a voice agent that delivers **calls from your future self** — literally you who is calling back from five years ahead to guide you based on your lived experience. You talk like you’re on the phone with a friend; Nemotron handles ASR + LLM reasoning inside Pipecat; Future Me answers with vivid coaching that lands in a crisp 30 / 90 / 365‑day action plan. Every session is logged, scored, and fed back into memory so each subsequent call feels wiser than the last.
+Call Me Tomorrow is a career coach voice agent, that **calls from your future self** — literally you who is calling back from five years ahead to guide you based on your lived experience. You talk like you’re on the phone with a friend; Nemotron handles ASR + LLM reasoning inside Pipecat; Future Me answers with vivid coaching that lands in a crisp 30 / 90 / 365‑day action plan. Every session is logged, scored, and fed back into memory so each subsequent call feels wiser than the last.
 
 ## 2. Demo video (< 60 seconds)
 
