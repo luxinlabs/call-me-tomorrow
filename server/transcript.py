@@ -241,6 +241,39 @@ class TranscriptLogger:
             lines.append(f"[{t.speaker}]")
             lines.append(t.text)
             lines.append("")
+        text = "\n".join(lines).strip()
+
+        # Fallback: if the frame-based bot capture missed everything, extract directly
+        # from context.messages which is always the authoritative conversation record.
+        if not self._bot_turns:
+            text = self._from_context_messages(context, header, skip_injected)
+        return text
+
+    def _from_context_messages(
+        self, context: "LLMContext", header: str = "", skip_injected: int = 1
+    ) -> str:
+        """Extract transcript directly from context.messages — reliable fallback."""
+        lines: list[str] = []
+        if header:
+            lines += [header, "─" * max(len(header), 20), ""]
+        skipped = 0
+        bot_name = self.bot_logger._bot_name
+        for msg in context.messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+            if role == "system":
+                continue
+            if isinstance(content, list):
+                continue
+            if not isinstance(content, str) or not content.strip():
+                continue
+            if role == "user":
+                if skipped < skip_injected:
+                    skipped += 1
+                    continue
+                lines += [f"[You]", content.strip(), ""]
+            elif role == "assistant":
+                lines += [f"[{bot_name}]", content.strip(), ""]
         return "\n".join(lines).strip()
 
     def as_json(self, context: "LLMContext") -> str:

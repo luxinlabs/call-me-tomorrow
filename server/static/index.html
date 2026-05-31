@@ -762,7 +762,7 @@ async function handleAnswer() {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         transport:'webrtc',
-        body:{channel:'career', time_horizon:TIME_HORIZON, phone:phone||null, force_onboarding:!phone},
+        body:{channel:'career', time_horizon:TIME_HORIZON, phone:phone||null, force_onboarding:false},
       }),
     });
     if (!res.ok) throw new Error(`/start → ${res.status}`);

@@ -1,5 +1,6 @@
 """Session bot — returning user, channel-aware, RAG-enhanced Future Me."""
 
+import asyncio
 import os
 
 from loguru import logger
@@ -29,6 +30,7 @@ from memory import (
     get_user_by_phone,
     save_action_items,
     save_session,
+    update_session_score,
     update_session_transcript,
 )
 from nemotron_llm import VLLMOpenAILLMService
@@ -63,6 +65,7 @@ async def run_session(
     # ── Mutable call state ────────────────────────────────────────────────────
     current_archetype: str = "default"
     session_id: int | None = None
+    plan_delivered = False
     transcript_logger = TranscriptLogger(bot_name="Future Me", session_key=session_key)
 
     # Pre-fetch pending action items for check-in
@@ -147,20 +150,55 @@ async def run_session(
 
     async def end_call(params: FunctionCallParams) -> None:
         """End the call after the goodbye is spoken."""
-        # Embed transcript for future RAG retrieval
+        nonlocal session_id
+
+        transcript = transcript_logger.as_text(
+            context=context,
+            header=f"Session — {channel.name}",
+        )
+
+        # Fallback: if deliver_action_plan was never called, create the session row now
+        if session_id is None and transcript.strip():
+            try:
+                session_id = save_session(
+                    phone=phone,
+                    channel=channel_id,
+                    archetype=current_archetype or "session-partial",
+                    answers=onboarding_answers,
+                    action_plan={},
+                    user_id=int(user_id) if user_id != "anon" else None,
+                )
+                logger.info(f"Fallback session saved: session_id={session_id}")
+            except Exception as e:
+                logger.warning(f"Fallback session save failed: {e}")
+
         if session_id:
-            transcript = transcript_logger.as_text(
-                context=context,
-                header=f"Session — {channel.name}",
-            )
+            update_session_transcript(session_id, transcript)
+
             await ingest_session(
                 user_id=user_id,
                 channel=channel_id,
                 session_id=session_id,
                 transcript=transcript,
                 metadata={"archetype": current_archetype, "type": "session"},
+                archetype=current_archetype,
+                goal=onboarding_answers.get("goal", ""),
             )
-            update_session_transcript(session_id, transcript)
+
+            # Score session quality via Nemotron — awaited BEFORE EndTaskFrame
+            try:
+                from cekura_eval import score_session_locally
+                score, breakdown = await score_session_locally(
+                    transcript,
+                    user_goal=onboarding_answers.get("goal", ""),
+                    user_obstacle=onboarding_answers.get("obstacle", ""),
+                    user_fear=onboarding_answers.get("fear", ""),
+                )
+                if score > 0:
+                    update_session_score(session_id, score, breakdown)
+                    logger.info(f"Session {session_id} scored: {score:.3f} {breakdown}")
+            except Exception as _e:
+                logger.warning(f"Session scoring failed: {_e}")
 
         logger.info(f"Session {session_id} complete")
         await params.llm.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
@@ -249,16 +287,27 @@ async def run_session(
 
     @transport.event_handler("on_client_disconnected")
     async def on_disconnected(transport, client):
+        nonlocal session_id
         try:
             transcript = transcript_logger.as_text(
                 context=context,
                 header=f"Session (partial) — {channel.name}",
             )
-            if transcript.strip() and session_id:
+            if transcript.strip():
+                if session_id is None:
+                    # User hung up before deliver_action_plan — create the row now
+                    session_id = save_session(
+                        phone=phone,
+                        channel=channel_id,
+                        archetype=current_archetype or "session-partial",
+                        answers=onboarding_answers,
+                        action_plan={},
+                        user_id=int(user_id) if user_id != "anon" else None,
+                    )
+                    logger.info(f"Early-hangup session saved: session_id={session_id}")
                 update_session_transcript(session_id, transcript)
-                logger.info(f"Partial session transcript saved: session_id={session_id}")
         except Exception as e:
-            logger.warning(f"Could not save partial transcript: {e}")
+            logger.warning(f"Could not save partial transcript on disconnect: {e}")
         await worker.cancel()
 
     runner = WorkerRunner(handle_sigint=False)

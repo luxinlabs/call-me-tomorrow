@@ -55,6 +55,7 @@ Output ONLY the JSON object — no markdown fences, no preamble."""
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": 900,
                     "temperature": 0.65,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
                 headers={"Authorization": f"Bearer {os.getenv('NEMOTRON_LLM_API_KEY', 'EMPTY')}"},
                 timeout=aiohttp.ClientTimeout(total=30),

@@ -79,8 +79,9 @@ async def _nemotron_analysis(prompt: str) -> str:
                 json={
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 200,
+                    "max_tokens": 250,
                     "temperature": 0.6,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
                 headers={"Authorization": f"Bearer {os.getenv('NEMOTRON_LLM_API_KEY', 'EMPTY')}"},
                 timeout=aiohttp.ClientTimeout(total=12),

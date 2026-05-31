@@ -10,6 +10,7 @@ Also mounts:
   GET  /sessions        Debug: recent sessions
 """
 
+import json
 import os
 import uuid
 
@@ -83,7 +84,8 @@ async def list_sessions():
         conn = sqlite3.connect(db)
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            "SELECT s.id, s.phone, s.user_id, u.name, s.channel, s.archetype, s.status, s.created_at, s.cekura_score "
+            "SELECT s.id, s.phone, s.user_id, u.name, s.channel, s.archetype, s.status, "
+            "s.created_at, s.cekura_score, s.score_breakdown "
             "FROM sessions s LEFT JOIN users u ON s.user_id=u.id "
             "ORDER BY s.id DESC LIMIT 20"
         ).fetchall()
@@ -97,6 +99,44 @@ async def list_sessions():
 async def trigger_feedback_loop():
     result = await run_feedback_loop()
     return JSONResponse(result)
+
+
+@app.post("/api/score-all")
+async def score_all_sessions():
+    """Score every completed session that doesn't have a cekura_score yet."""
+    import sqlite3 as _sq
+    from cekura_eval import score_session_locally
+    from memory import update_session_score
+
+    db = os.getenv("DB_PATH", "calls.db")
+    conn = _sq.connect(db)
+    conn.row_factory = _sq.Row
+    rows = conn.execute(
+        "SELECT id, transcript, answers FROM sessions "
+        "WHERE status='completed' AND (cekura_score IS NULL OR cekura_score=0) "
+        "AND length(transcript) > 100"
+    ).fetchall()
+    conn.close()
+
+    results = []
+    for row in rows:
+        sid = row["id"]
+        try:
+            answers = json.loads(row["answers"] or "{}")
+        except Exception:
+            answers = {}
+        score, breakdown = await score_session_locally(
+            row["transcript"] or "",
+            user_goal=answers.get("goal", answers.get("q3", "")),
+            user_obstacle=answers.get("obstacle", ""),
+            user_fear=answers.get("fear", ""),
+        )
+        if score > 0:
+            update_session_score(sid, score, breakdown)
+            results.append({"id": sid, "score": score, "breakdown": breakdown})
+            logger.info(f"Retroactive score session {sid}: {score:.3f}")
+
+    return JSONResponse({"scored": len(results), "sessions": results})
 
 
 # ── Outbound phone call ───────────────────────────────────────────────────────
@@ -307,7 +347,7 @@ async def outbound_ws(websocket: WebSocket, token: str):
         channel_name=channel_obj.name,
     )
 
-    if force_onboarding or not user or not user.get("onboarding_done"):
+    if force_onboarding:
         await run_onboarding(
             transport, channel_id, time_horizon, phone,
             world_context=world_context, **transport_overrides,
@@ -319,13 +359,209 @@ async def outbound_ws(websocket: WebSocket, token: str):
         )
 
 
+def _parse_transcript_turns(text: str):
+    """Parse stored plain-text transcript into (speaker, role, text) tuples."""
+    from transcript import Turn
+    turns = []
+    for block in text.split("\n\n"):
+        block = block.strip()
+        if not block:
+            continue
+        if block.startswith("[You]"):
+            turns.append(Turn(role="user", speaker="You", text=block[5:].strip()))
+        elif block.startswith("[") and "]" in block:
+            sp = block[1:block.index("]")]
+            turns.append(Turn(role="assistant", speaker=sp, text=block[block.index("]")+1:].strip()))
+    return turns
+
+
+def _score_html(score) -> str:
+    if not score:
+        return '<span class="score-chip unscored">unscored</span>'
+    pct = score * 10
+    cls = "high" if pct >= 7.5 else "mid" if pct >= 5 else "low"
+    label = "strong" if pct >= 7.5 else "fair" if pct >= 5 else "needs work"
+    return f'<span class="score-chip {cls}">{pct:.1f}/10 &nbsp;{label}</span>'
+
+
 @app.get("/transcript/{session_id}")
 async def get_transcript(session_id: int):
-    """Return plain-text transcript for a session."""
+    """Rendered HTML transcript view for a session."""
+    from fastapi.responses import HTMLResponse
+    import json as _json
     session = get_session(session_id)
     if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
-    return JSONResponse({"transcript": session.get("transcript", ""), "session": session})
+
+    transcript_text = session.get("transcript") or ""
+    turns = _parse_transcript_turns(transcript_text) if transcript_text else []
+
+    answers = session.get("answers") or {}
+    if isinstance(answers, str):
+        try: answers = _json.loads(answers)
+        except: answers = {}
+
+    action_plan = session.get("action_plan") or {}
+    if isinstance(action_plan, str):
+        try: action_plan = _json.loads(action_plan)
+        except: action_plan = {}
+
+    score_html = _score_html(session.get("cekura_score"))
+
+    # Per-dimension score breakdown
+    breakdown = session.get("score_breakdown") or {}
+    if isinstance(breakdown, str):
+        try: breakdown = _json.loads(breakdown)
+        except: breakdown = {}
+
+    from cekura_eval import SCORE_DIMENSIONS
+    def dim_bar(key, label):
+        val = breakdown.get(key)
+        if val is None:
+            return ""
+        pct = int(val) * 10  # 0-10 → 0-100%
+        cls = "high" if val >= 7.5 else "mid" if val >= 5 else "low"
+        return (
+            f'<div class="dim-row">'
+            f'<span class="dim-label">{label}</span>'
+            f'<div class="dim-bar"><div class="dim-fill {cls}" style="width:{pct}%"></div></div>'
+            f'<span class="dim-val">{val}/10</span>'
+            f'</div>'
+        )
+
+    breakdown_html = "".join(dim_bar(k, lbl) for k, lbl, _ in SCORE_DIMENSIONS)
+    breakdown_section = (
+        f'<div class="divider"></div>'
+        f'<p class="section-label">Quality breakdown</p>'
+        f'<div class="dim-grid">{breakdown_html}</div>'
+    ) if breakdown_html else ""
+
+    def turn_html(t):
+        cls = "turn-user" if t.role == "user" else "turn-bot"
+        return f'<div class="turn {cls}"><span class="speaker">{t.speaker}</span><p>{t.text}</p></div>'
+
+    turns_html = "\n".join(turn_html(t) for t in turns) if turns else '<p class="no-transcript">No transcript available.</p>'
+
+    def answer_row(label, key):
+        val = answers.get(key, "")
+        if not val:
+            return ""
+        return f'<div class="meta-row"><span class="meta-label">{label}</span><span class="meta-val">{val}</span></div>'
+
+    answers_html = "".join([
+        answer_row("Peak moment", "peak"),
+        answer_row("5-year goal", "goal"),
+        answer_row("Main obstacle", "obstacle"),
+        answer_row("Fear of change", "fear"),
+        answer_row("Core values", "values"),
+        answer_row("Readiness", "readiness"),
+        answer_row("Q1", "q1"), answer_row("Q2", "q2"), answer_row("Q3", "q3"),
+    ])
+
+    plan_html = ""
+    if action_plan:
+        plan_html = '<div class="plan-block">' + "".join(
+            f'<div class="plan-item"><span class="plan-label">{k.replace("_"," ").title()}</span><span class="plan-text">{v}</span></div>'
+            for k, v in action_plan.items() if v
+        ) + "</div>"
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Session #{session_id} — Call Me Tomorrow</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    :root{{--void:#0a0a0f;--oracle:#c8b09a;--parchment:#e8e4dc;--answer:#5ab87a;--border:rgba(200,176,154,.12);--dusk:rgba(22,22,25,.5);}}
+    *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+    body{{background:var(--void);color:var(--parchment);font-family:'DM Mono',monospace;font-weight:300;min-height:100vh}}
+    .page{{max-width:720px;margin:0 auto;padding:3rem 2rem 6rem}}
+    .back{{font-size:.62rem;letter-spacing:.1em;color:var(--oracle);opacity:.55;text-decoration:none;display:inline-block;margin-bottom:2.5rem}}
+    .back:hover{{opacity:1}}
+
+    /* ── Header ── */
+    .session-header{{margin-bottom:2.25rem}}
+    .session-num{{font-size:.52rem;letter-spacing:.18em;text-transform:uppercase;color:var(--oracle);opacity:.4;margin-bottom:.4rem}}
+    .session-title{{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:300;line-height:1;margin-bottom:.6rem}}
+    .session-meta-row{{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:.8rem}}
+    .meta-chip{{font-size:.5rem;letter-spacing:.12em;text-transform:uppercase;padding:.2rem .5rem;border:1px solid var(--border);border-radius:4px;color:var(--oracle);opacity:.55}}
+    .score-chip{{font-size:.52rem;letter-spacing:.06em;padding:.22rem .6rem;border-radius:20px;border:1px solid}}
+    .score-chip.high{{color:#5ab87a;border-color:rgba(90,184,122,.35);background:rgba(90,184,122,.07)}}
+    .score-chip.mid{{color:var(--oracle);border-color:rgba(200,176,154,.35);background:rgba(200,176,154,.06)}}
+    .score-chip.low{{color:rgba(232,228,220,.45);border-color:rgba(232,228,220,.15);background:transparent}}
+    .score-chip.unscored{{color:rgba(232,228,220,.3);border-color:rgba(232,228,220,.1);background:transparent}}
+    .dl-link{{font-size:.52rem;letter-spacing:.08em;color:var(--answer);text-decoration:none;opacity:.7}}
+    .dl-link:hover{{opacity:1}}
+
+    /* ── Score breakdown ── */
+    .dim-grid{{display:flex;flex-direction:column;gap:.55rem}}
+    .dim-row{{display:grid;grid-template-columns:160px 1fr 40px;gap:.75rem;align-items:center}}
+    .dim-label{{font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:var(--oracle);opacity:.45}}
+    .dim-bar{{height:5px;border-radius:3px;background:rgba(200,176,154,.1);overflow:hidden}}
+    .dim-fill{{height:100%;border-radius:3px;transition:width .5s ease}}
+    .dim-fill.high{{background:#5ab87a}}
+    .dim-fill.mid{{background:var(--oracle)}}
+    .dim-fill.low{{background:rgba(232,228,220,.25)}}
+    .dim-val{{font-size:.52rem;color:var(--oracle);opacity:.55;text-align:right}}
+
+    /* ── Sections ── */
+    .divider{{width:100%;height:1px;background:var(--border);margin:2rem 0}}
+    .section-label{{font-size:.5rem;letter-spacing:.2em;text-transform:uppercase;color:var(--oracle);opacity:.4;margin-bottom:1.25rem}}
+
+    /* ── Answers metadata ── */
+    .meta-rows{{display:flex;flex-direction:column;gap:0}}
+    .meta-row{{display:grid;grid-template-columns:130px 1fr;gap:1rem;padding:.7rem 0;border-top:1px solid var(--border);align-items:baseline}}
+    .meta-row:last-child{{border-bottom:1px solid var(--border)}}
+    .meta-label{{font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--oracle);opacity:.38}}
+    .meta-val{{font-size:.73rem;line-height:1.65;opacity:.8}}
+
+    /* ── Action plan ── */
+    .plan-block{{display:flex;flex-direction:column;gap:.65rem}}
+    .plan-item{{display:grid;grid-template-columns:90px 1fr;gap:1rem;align-items:baseline;padding:.7rem 1rem;border:1px solid var(--border);border-radius:8px;background:rgba(200,176,154,.03)}}
+    .plan-label{{font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--oracle);opacity:.5}}
+    .plan-text{{font-size:.73rem;line-height:1.65;opacity:.85}}
+
+    /* ── Transcript turns ── */
+    .turns{{display:flex;flex-direction:column;gap:1.25rem}}
+    .turn{{display:flex;flex-direction:column;gap:.3rem}}
+    .speaker{{font-size:.52rem;letter-spacing:.14em;text-transform:uppercase;opacity:.38}}
+    .turn-user .speaker{{color:var(--parchment)}}
+    .turn-bot .speaker{{color:var(--oracle)}}
+    .turn p{{font-size:.9rem;line-height:1.75}}
+    .turn-user p{{opacity:.88}}
+    .turn-bot p{{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:1.05rem;opacity:.94}}
+    .no-transcript{{font-size:.72rem;opacity:.35;padding:1rem 0}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <a href="/dashboard" class="back">← Sessions</a>
+
+  <div class="session-header">
+    <div class="session-num">Session #{session_id}</div>
+    <div class="session-title">{session.get('channel','').title()} &mdash; {session.get('archetype','').replace('-',' ').title()}</div>
+    <div class="session-meta-row">
+      <span class="meta-chip">{session.get('status','active')}</span>
+      <span class="meta-chip">{(session.get('created_at') or '')[:16].replace('T',' ')}</span>
+      {score_html}
+      <a href="/transcript/{session_id}/download" class="dl-link">↓ download .txt</a>
+    </div>
+  </div>
+
+  {"<div class='divider'></div><p class='section-label'>Session context</p><div class='meta-rows'>" + answers_html + "</div>" if answers_html else ""}
+
+  {"<div class='divider'></div><p class='section-label'>Action plan</p>" + plan_html if plan_html else ""}
+
+  {breakdown_section}
+
+  <div class="divider"></div>
+  <p class="section-label">Transcript</p>
+  <div class="turns">{turns_html}</div>
+</div>
+</body>
+</html>"""
+    return HTMLResponse(html)
 
 
 @app.get("/transcript/{session_id}/download")
@@ -364,28 +600,38 @@ async def profile_page(phone: str):
     conn.close()
 
     from transcript import Turn, turns_to_html
-    import json as _json
+    import json as _json, sqlite3 as _sqlite3
 
     session_blocks = ""
     for row in rows:
         s = dict(row)
-        title = f"{s.get('channel','').title()} — {s.get('archetype','').title()} — {s.get('created_at','')[:10]}"
+        sid = s.get("id")
+        date = (s.get("created_at") or "")[:10]
+        archetype = (s.get("archetype") or "").replace("-", " ").title()
+        title = f"{s.get('channel','').title()} — {archetype} — {date}"
+        score_chip = _score_html(s.get("cekura_score"))
         transcript_text = s.get("transcript") or ""
-        if transcript_text:
-            # Re-render plain text as HTML turns
-            lines = transcript_text.split("\n\n")
-            turns = []
-            for line in lines:
-                if line.startswith("[You]"):
-                    turns.append(Turn(role="user", speaker="You", text=line[6:].strip()))
-                elif line.startswith("[") and "]" in line:
-                    sp = line[1:line.index("]")]
-                    turns.append(Turn(role="assistant", speaker=sp, text=line[line.index("]")+2:].strip()))
+        turns = _parse_transcript_turns(transcript_text) if transcript_text else []
+
+        meta_bar = f'''<div class="session-meta-bar">
+            {score_chip}
+            <span class="session-chip">{s.get('status','active')}</span>
+            <a href="/transcript/{sid}" class="session-chip session-chip-link">View full session →</a>
+            <a href="/transcript/{sid}/download" class="dl-link">↓ .txt</a>
+        </div>'''
+
+        if turns:
             session_blocks += turns_to_html(turns, title=title)
-            dl_link = f'<a href="/transcript/{s["id"]}/download" class="dl-link">↓ download transcript</a>'
-            session_blocks = session_blocks.replace("</section>", dl_link + "\n</section>")
+            session_blocks = session_blocks.replace(
+                "</section>",
+                meta_bar + "\n</section>"
+            )
         else:
-            session_blocks += f'<section class="transcript-block"><h3 class="transcript-title">{title}</h3><p class="no-transcript">Transcript not yet available.</p></section>'
+            session_blocks += f'''<section class="transcript-block">
+              <h3 class="transcript-title">{title}</h3>
+              <p class="no-transcript">Transcript not yet available.</p>
+              {meta_bar}
+            </section>'''
 
     personality = user.get("personality_data") or {}
     if isinstance(personality, str):
@@ -469,7 +715,16 @@ async def profile_page(phone: str):
     .turn-user p {{ opacity:0.82; }}
     .turn-bot p {{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:0.92rem; opacity:0.9; }}
     .no-transcript {{ font-size:0.7rem; opacity:0.35; padding:1rem 1.25rem 1.25rem; }}
-    .dl-link {{ display:inline-block; margin:0 1.25rem 1.25rem; font-size:0.58rem; letter-spacing:0.1em; color:var(--answer); text-decoration:none; opacity:0.65; }}
+    .session-meta-bar {{ display:flex; align-items:center; flex-wrap:wrap; gap:0.5rem; padding:0.85rem 1.25rem 1rem; border-top:1px solid var(--border); }}
+    .score-chip {{ font-size:0.5rem; letter-spacing:0.06em; padding:0.2rem 0.55rem; border-radius:20px; border:1px solid; }}
+    .score-chip.high {{ color:#5ab87a; border-color:rgba(90,184,122,.35); background:rgba(90,184,122,.07); }}
+    .score-chip.mid {{ color:var(--oracle); border-color:rgba(200,176,154,.35); background:rgba(200,176,154,.06); }}
+    .score-chip.low {{ color:rgba(232,228,220,.45); border-color:rgba(232,228,220,.15); background:transparent; }}
+    .score-chip.unscored {{ color:rgba(232,228,220,.3); border-color:rgba(232,228,220,.1); background:transparent; }}
+    .session-chip {{ font-size:0.48rem; letter-spacing:0.1em; text-transform:uppercase; padding:0.2rem 0.5rem; border:1px solid var(--border); border-radius:4px; color:var(--oracle); opacity:0.5; }}
+    .session-chip-link {{ opacity:0.65; text-decoration:none; transition:opacity .15s; }}
+    .session-chip-link:hover {{ opacity:1; }}
+    .dl-link {{ font-size:0.52rem; letter-spacing:0.08em; color:var(--answer); text-decoration:none; opacity:0.6; }}
     .dl-link:hover {{ opacity:1; }}
   </style>
 </head>

@@ -143,6 +143,10 @@ def init_db() -> None:
     with _conn() as conn:
         _maybe_add_column(conn, "users", "personality_data", "TEXT DEFAULT '{}'")
         conn.commit()
+    # Backfill score_breakdown column if missing
+    with _conn() as conn:
+        _maybe_add_column(conn, "sessions", "score_breakdown", "TEXT DEFAULT '{}'")
+        conn.commit()
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -180,6 +184,16 @@ def create_user(phone: str, name: str, role: str, time_horizon: int, channel: st
             return cur.lastrowid
         row = conn.execute("SELECT id FROM users WHERE phone=?", (phone,)).fetchone()
         return row[0]
+
+
+def update_session_score(session_id: int, score: float, breakdown: dict | None = None) -> None:
+    """Persist a quality score (0.0-1.0) and per-dimension breakdown for a session."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE sessions SET cekura_score=?, score_breakdown=? WHERE id=?",
+            (score, json.dumps(breakdown or {}), session_id),
+        )
+        conn.commit()
 
 
 def save_personality_profile(user_id: int, data: dict) -> None:

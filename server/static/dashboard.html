@@ -17,85 +17,117 @@
   --border:rgba(200,176,154,.10);
   --border-hi:rgba(200,176,154,.28);
   --answer:#5ab87a;
+  --muted:rgba(232,228,220,.32);
 }
 html{scroll-behavior:smooth}
 body{background:var(--void);color:var(--parchment);font-family:'DM Mono',monospace;font-weight:300;min-height:100vh}
 
-.wrap{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+.wrap{max-width:960px;margin:0 auto;padding:2.5rem 1.75rem}
 
-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
-.back-link{display:inline-flex;align-items:center;gap:.5rem;color:var(--oracle);opacity:.6;text-decoration:none;font-size:.62rem;letter-spacing:.1em;transition:opacity .2s}
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2.5rem;gap:1rem;flex-wrap:wrap}
+.back-link{display:inline-flex;align-items:center;gap:.45rem;color:var(--oracle);opacity:.55;text-decoration:none;font-size:.6rem;letter-spacing:.1em;transition:opacity .2s}
 .back-link:hover{opacity:1}
-.back-link svg{width:16px;height:16px}
-
-h1{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(2rem,6vw,2.8rem);
-  font-weight:300;line-height:.9;letter-spacing:-.02em;
-}
+.back-link svg{width:14px;height:14px}
+h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,6vw,2.8rem);font-weight:300;line-height:.9;letter-spacing:-.02em}
 h1 em{font-style:italic;color:var(--oracle)}
 
-.refresh-btn{
-  padding:.5rem 1rem;border:1px solid var(--border);
-  border-radius:8px;background:transparent;color:var(--parchment);
-  font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.06em;
-  cursor:pointer;transition:all .2s;
+.header-actions{display:flex;gap:.6rem}
+.btn-sm{
+  padding:.45rem .9rem;border:1px solid var(--border);border-radius:8px;
+  background:transparent;color:var(--parchment);font-family:'DM Mono',monospace;
+  font-size:.56rem;letter-spacing:.05em;cursor:pointer;transition:all .2s;
 }
-.refresh-btn:hover{border-color:var(--border-hi);background:rgba(200,176,154,.04)}
+.btn-sm:hover{border-color:var(--border-hi);background:rgba(200,176,154,.04)}
+.btn-sm.btn-score{border-color:rgba(200,176,154,.22);color:var(--oracle)}
+.btn-sm.btn-score:hover{background:rgba(200,176,154,.06)}
 
 /* ─── Stats bar ─────────────────────────────────────────────────────────── */
 .stats-bar{
-  display:flex;gap:1.5rem;margin-bottom:2rem;
-  padding:1rem 1.2rem;border:1px solid var(--border);border-radius:10px;
-  background:rgba(22,22,25,.4);
+  display:flex;gap:2rem;margin-bottom:2.5rem;flex-wrap:wrap;
+  padding:1.1rem 1.4rem;border:1px solid var(--border);border-radius:12px;
+  background:rgba(22,22,25,.5);
 }
-.stat{display:flex;flex-direction:column;gap:.2rem}
-.stat-label{font-size:.52rem;color:var(--oracle);opacity:.5;letter-spacing:.08em;text-transform:uppercase}
-.stat-value{font-size:.78rem;color:var(--parchment)}
+.stat{display:flex;flex-direction:column;gap:.25rem}
+.stat-label{font-size:.5rem;color:var(--oracle);opacity:.45;letter-spacing:.1em;text-transform:uppercase}
+.stat-value{font-size:.9rem;color:var(--parchment)}
+.stat-value.score-hi{color:var(--answer)}
+.stat-value.score-mid{color:var(--oracle)}
 
-/* ─── Session list ─────────────────────────────────────────────────────── */
-.session-list{display:flex;flex-direction:column;gap:.75rem}
-
-.session-card{
+/* ─── Chart ──────────────────────────────────────────────────────────────── */
+.chart-section{margin-bottom:2.5rem}
+.section-label{font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:var(--oracle);opacity:.4;margin-bottom:1rem}
+.chart-wrap{
   border:1px solid var(--border);border-radius:12px;
-  background:rgba(22,22,25,.4);
-  padding:1.2rem 1.4rem;
-  position:relative;overflow:hidden;
-  transition:border-color .2s,background .2s;
+  background:rgba(22,22,25,.4);padding:1.4rem 1.4rem 1rem;
+  overflow-x:auto;
 }
-.session-card:hover{border-color:var(--border-hi);background:rgba(22,22,25,.6)}
+#scoreChart{display:block;width:100%;min-height:140px}
+.chart-legend{display:flex;gap:1.5rem;margin-top:.75rem;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:.35rem;font-size:.5rem;color:var(--oracle);opacity:.5}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
-.session-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.8rem}
-.session-id{font-size:.56rem;color:var(--oracle);opacity:.4;letter-spacing:.06em;font-family:'DM Mono',monospace}
-.session-status{
-  padding:.25rem .6rem;border-radius:6px;font-size:.52rem;letter-spacing:.06em;text-transform:uppercase;
+/* ─── Score table ────────────────────────────────────────────────────────── */
+.table-section{margin-bottom:3rem}
+.table-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:1px solid var(--border);background:rgba(200,176,154,.04)}
+th{
+  font-size:.48rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--oracle);opacity:.45;
+  padding:.75rem 1rem;text-align:left;font-weight:300;white-space:nowrap;
 }
-.session-status.active{background:rgba(90,184,122,.12);color:var(--answer)}
-.session-status.completed{background:rgba(200,176,154,.12);color:var(--oracle)}
+tbody tr{border-top:1px solid var(--border);transition:background .12s}
+tbody tr:hover{background:rgba(200,176,154,.03)}
+td{font-size:.64rem;padding:.75rem 1rem;vertical-align:middle;color:var(--parchment)}
+td.dim{opacity:.4}
+td a{color:var(--parchment);text-decoration:none;opacity:.7;transition:opacity .15s}
+td a:hover{opacity:1}
 
-.session-info{display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:.8rem}
-.info-item{display:flex;flex-direction:column;gap:.2rem}
-.info-label{font-size:.5rem;color:var(--oracle);opacity:.4;letter-spacing:.08em;text-transform:uppercase}
-.info-value{font-size:.64rem;color:var(--parchment)}
-
-.session-actions{display:flex;gap:.6rem;margin-top:.8rem}
-.action-btn{
-  padding:.5rem .9rem;border:1px solid var(--border);
-  border-radius:8px;background:transparent;color:var(--parchment);
-  font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.04em;
-  cursor:pointer;transition:all .2s;text-decoration:none;
+/* ─── Score chips ────────────────────────────────────────────────────────── */
+.score-chip{
+  display:inline-flex;align-items:center;gap:.25rem;
+  padding:.18rem .5rem;border-radius:20px;border:1px solid;
+  font-size:.5rem;letter-spacing:.05em;white-space:nowrap;
 }
-.action-btn:hover{border-color:var(--border-hi);background:rgba(200,176,154,.04)}
+.score-chip.high{color:#5ab87a;border-color:rgba(90,184,122,.35);background:rgba(90,184,122,.07)}
+.score-chip.mid{color:var(--oracle);border-color:rgba(200,176,154,.35);background:rgba(200,176,154,.06)}
+.score-chip.low{color:rgba(232,228,220,.5);border-color:rgba(232,228,220,.15);background:transparent}
+.score-chip.unscored{color:rgba(232,228,220,.25);border-color:rgba(232,228,220,.1);background:transparent;font-style:italic}
 
-/* ─── Empty state ─────────────────────────────────────────────────────── */
-.empty-state{text-align:center;padding:4rem 1rem;color:var(--oracle);opacity:.3;font-size:.64rem;letter-spacing:.04em}
+.status-chip{
+  display:inline-block;padding:.15rem .45rem;border-radius:4px;
+  font-size:.48rem;letter-spacing:.06em;text-transform:uppercase;
+}
+.status-chip.completed{background:rgba(200,176,154,.1);color:var(--oracle)}
+.status-chip.active{background:rgba(90,184,122,.1);color:var(--answer)}
 
-/* ─── Loading ─────────────────────────────────────────────────────────── */
-.loading{text-align:center;padding:2rem;color:var(--oracle);opacity:.5;font-size:.64rem;letter-spacing:.04em}
-</style>
+/* ─── Empty / loading ────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:3rem;color:var(--oracle);opacity:.3;font-size:.64rem}
+.loading-row td{text-align:center;padding:2rem;opacity:.35;font-size:.62rem;letter-spacing:.04em}
+
+/* ─── Score bar inline ───────────────────────────────────────────────────── */
+.score-bar-wrap{display:flex;align-items:center;gap:.6rem}
+.score-bar{height:4px;border-radius:2px;background:rgba(200,176,154,.12);flex:1;max-width:80px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:2px;transition:width .4s ease}
+.score-bar-fill.high{background:var(--answer)}
+.score-bar-fill.mid{background:var(--oracle)}
+.score-bar-fill.low{background:rgba(232,228,220,.25)}
+
+/* ─── Per-dimension mini bars ────────────────────────────────────────────── */
+.dim-mini-grid{display:flex;flex-direction:column;gap:.28rem;min-width:140px}
+.dim-mini{display:grid;grid-template-columns:52px 1fr;gap:.4rem;align-items:center}
+.dim-mini-label{font-size:.44rem;letter-spacing:.06em;text-transform:uppercase;color:var(--oracle);opacity:.4;white-space:nowrap}
+.dim-mini-bar{height:3px;border-radius:2px;background:rgba(200,176,154,.1);overflow:hidden}
+.dim-mini-fill{height:100%;border-radius:2px;transition:width .4s ease}
+.dim-mini-fill.high{background:var(--answer)}
+.dim-mini-fill.mid{background:var(--oracle)}
+.dim-mini-fill.low{background:rgba(232,228,220,.2)}
+  </style>
 </head>
 <body>
 <div class="wrap">
+
   <header>
     <div>
       <a href="/" class="back-link">
@@ -104,36 +136,184 @@ h1 em{font-style:italic;color:var(--oracle)}
         </svg>
         Back
       </a>
-      <h1 style="margin-top:1rem">Sessions</h1>
+      <h1 style="margin-top:.8rem">Session <em>Scores</em></h1>
     </div>
-    <button class="refresh-btn" onclick="loadSessions()">Refresh</button>
+    <div class="header-actions">
+      <button class="btn-sm btn-score" onclick="scoreAll()" id="btnScore">Score unscored →</button>
+      <button class="btn-sm" onclick="loadSessions()">Refresh</button>
+    </div>
   </header>
 
   <div class="stats-bar" id="statsBar" style="display:none">
-    <div class="stat">
-      <span class="stat-label">Total</span>
-      <span class="stat-value" id="statTotal">0</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Active</span>
-      <span class="stat-value" id="statActive">0</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Completed</span>
-      <span class="stat-value" id="statCompleted">0</span>
+    <div class="stat"><span class="stat-label">Total</span><span class="stat-value" id="statTotal">0</span></div>
+    <div class="stat"><span class="stat-label">Completed</span><span class="stat-value" id="statCompleted">0</span></div>
+    <div class="stat"><span class="stat-label">Scored</span><span class="stat-value" id="statScored">0</span></div>
+    <div class="stat"><span class="stat-label">Avg score</span><span class="stat-value" id="statAvg">—</span></div>
+    <div class="stat"><span class="stat-label">Best session</span><span class="stat-value" id="statBest">—</span></div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-section" id="chartSection" style="display:none">
+    <p class="section-label">Score history</p>
+    <div class="chart-wrap">
+      <svg id="scoreChart" viewBox="0 0 800 140" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#5ab87a"></span>Strong (≥7.5)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--oracle)"></span>Fair (5–7.5)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:rgba(232,228,220,.3)"></span>Needs work (&lt;5)</span>
+      </div>
     </div>
   </div>
 
-  <div class="session-list" id="sessionList">
-    <div class="loading">Loading sessions...</div>
+  <!-- Score table -->
+  <div class="table-section">
+    <p class="section-label">All sessions</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Caller</th>
+            <th>Archetype</th>
+            <th>Status</th>
+            <th>Score</th>
+            <th>Quality</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="sessionTable">
+          <tr class="loading-row"><td colspan="8">Loading sessions...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
+
 </div>
 
 <script>
+/* ══════════════════════════════════════════════════════ HELPERS */
+function scoreChip(score) {
+  if (!score) return '<span class="score-chip unscored">— unscored</span>';
+  const pct = +(score * 10).toFixed(1);
+  const cls = pct >= 7.5 ? 'high' : pct >= 5 ? 'mid' : 'low';
+  const label = pct >= 7.5 ? 'strong' : pct >= 5 ? 'fair' : 'needs work';
+  return `<span class="score-chip ${cls}">${pct}/10</span>`;
+}
+
+const DIM_LABELS = {
+  scene_grounding:    'Scene',
+  identity_fidelity:  'Identity',
+  profile_integration:'Profile',
+  plan_actionability: 'Plan',
+  emotional_honesty:  'Honesty',
+};
+
+function scoreBars(score, breakdown) {
+  if (!score) return '';
+  const pct = Math.min(score * 10, 10);
+  const cls = pct >= 7.5 ? 'high' : pct >= 5 ? 'mid' : 'low';
+
+  let bd = {};
+  try { bd = (typeof breakdown === 'string') ? JSON.parse(breakdown) : (breakdown || {}); } catch(_){}
+
+  const hasDims = Object.keys(bd).length > 0;
+  if (!hasDims) {
+    return `<div class="score-bar-wrap">
+      <div class="score-bar"><div class="score-bar-fill ${cls}" style="width:${pct*10}%"></div></div>
+      <span style="font-size:.52rem;opacity:.55">${pct.toFixed(1)}</span>
+    </div>`;
+  }
+
+  const dimBars = Object.entries(DIM_LABELS).map(([k, lbl]) => {
+    const v = bd[k] ?? null;
+    if (v === null) return '';
+    const w = Math.min(v * 10, 100);
+    const dc = v >= 7.5 ? 'high' : v >= 5 ? 'mid' : 'low';
+    return `<div class="dim-mini" title="${lbl}: ${v}/10">
+      <span class="dim-mini-label">${lbl}</span>
+      <div class="dim-mini-bar"><div class="dim-mini-fill ${dc}" style="width:${w}%"></div></div>
+    </div>`;
+  }).join('');
+
+  return `<div class="dim-mini-grid">${dimBars}</div>`;
+}
+
+function statusChip(s) {
+  return `<span class="status-chip ${s}">${s}</span>`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+/* ══════════════════════════════════════════════════════ CHART */
+function renderChart(sessions) {
+  const scored = sessions.filter(s => s.cekura_score > 0)
+    .sort((a, b) => a.id - b.id);  // chronological
+  if (scored.length < 2) {
+    document.getElementById('chartSection').style.display = 'none';
+    return;
+  }
+  document.getElementById('chartSection').style.display = '';
+
+  const svg = document.getElementById('scoreChart');
+  const W = 800, H = 140, PAD = {top:16, right:20, bottom:28, left:32};
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+
+  const scores = scored.map(s => s.cekura_score * 10);
+  const maxS = 10, minS = 0;
+  const xStep = chartW / Math.max(scored.length - 1, 1);
+
+  const toX = i => PAD.left + i * xStep;
+  const toY = v => PAD.top + chartH - ((v - minS) / (maxS - minS)) * chartH;
+
+  let html = '';
+
+  // Gridlines at 2.5, 5, 7.5, 10
+  [2.5, 5, 7.5, 10].forEach(g => {
+    const y = toY(g);
+    const color = g === 7.5 ? 'rgba(90,184,122,.15)' : g === 5 ? 'rgba(200,176,154,.1)' : 'rgba(200,176,154,.06)';
+    html += `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="${color}" stroke-width="1"/>`;
+    html += `<text x="${PAD.left - 4}" y="${y + 4}" text-anchor="end" fill="rgba(200,176,154,.35)" font-size="9" font-family="DM Mono,monospace">${g}</text>`;
+  });
+
+  // Area fill
+  if (scored.length > 1) {
+    const pts = scored.map((s, i) => `${toX(i)},${toY(s.cekura_score * 10)}`).join(' ');
+    const first = `${toX(0)},${toY(0)}`;
+    const last = `${toX(scored.length - 1)},${toY(0)}`;
+    html += `<polygon points="${first} ${pts} ${last}" fill="rgba(200,176,154,.04)"/>`;
+  }
+
+  // Line connecting dots
+  if (scored.length > 1) {
+    for (let i = 0; i < scored.length - 1; i++) {
+      const x1 = toX(i), y1 = toY(scores[i]);
+      const x2 = toX(i + 1), y2 = toY(scores[i + 1]);
+      html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(200,176,154,.25)" stroke-width="1.5"/>`;
+    }
+  }
+
+  // Dots + labels
+  scored.forEach((s, i) => {
+    const x = toX(i), y = toY(scores[i]);
+    const pct = scores[i];
+    const color = pct >= 7.5 ? '#5ab87a' : pct >= 5 ? '#c8b09a' : 'rgba(232,228,220,.4)';
+    html += `<circle cx="${x}" cy="${y}" r="5" fill="${color}" stroke="rgba(10,10,15,.8)" stroke-width="1.5"/>`;
+    // Session ID below x-axis
+    html += `<text x="${x}" y="${H - PAD.bottom + 16}" text-anchor="middle" fill="rgba(200,176,154,.3)" font-size="8" font-family="DM Mono,monospace">#${s.id}</text>`;
+  });
+
+  svg.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════ LOAD */
 async function loadSessions() {
-  const list = document.getElementById('sessionList');
-  const stats = document.getElementById('statsBar');
-  list.innerHTML = '<div class="loading">Loading sessions...</div>';
+  const tbody = document.getElementById('sessionTable');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="8">Loading...</td></tr>';
 
   try {
     const res = await fetch('/sessions');
@@ -141,63 +321,89 @@ async function loadSessions() {
     const sessions = await res.json();
 
     if (!sessions || sessions.length === 0) {
-      list.innerHTML = '<div class="empty-state">No sessions yet. Start a call to see it here.</div>';
-      stats.style.display = 'none';
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="8">No sessions yet.</td></tr>';
+      document.getElementById('statsBar').style.display = 'none';
       return;
     }
 
-    // Update stats
+    // Stats
     const total = sessions.length;
-    const active = sessions.filter(s => s.status === 'active').length;
     const completed = sessions.filter(s => s.status === 'completed').length;
-    document.getElementById('statTotal').textContent = total;
-    document.getElementById('statActive').textContent = active;
-    document.getElementById('statCompleted').textContent = completed;
-    stats.style.display = 'flex';
+    const scored = sessions.filter(s => s.cekura_score > 0);
+    const avgScore = scored.length
+      ? scored.reduce((a, s) => a + s.cekura_score, 0) / scored.length
+      : null;
+    const bestSession = scored.length
+      ? scored.reduce((best, s) => s.cekura_score > best.cekura_score ? s : best, scored[0])
+      : null;
 
-    // Render sessions
-    list.innerHTML = sessions.map(s => `
-      <div class="session-card">
-        <div class="session-header">
-          <span class="session-id">#${s.id}</span>
-          <span class="session-status ${s.status}">${s.status}</span>
-        </div>
-        <div class="session-info">
-          <div class="info-item">
-            <span class="info-label">Caller</span>
-            <span class="info-value">${s.name || 'Anonymous'}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Phone</span>
-            <span class="info-value">${s.phone || '—'}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Channel</span>
-            <span class="info-value">${s.channel || 'life'}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Archetype</span>
-            <span class="info-value">${s.archetype || '—'}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Date</span>
-            <span class="info-value">${new Date(s.created_at).toLocaleDateString()}</span>
-          </div>
-        </div>
-        <div class="session-actions">
-          <a href="/transcript/${s.id}" class="action-btn">View transcript</a>
-          <a href="/transcript/${s.id}/download" class="action-btn">Download</a>
-          ${s.phone ? `<a href="/profile/${encodeURIComponent(s.phone)}" class="action-btn">View profile</a>` : ''}
-        </div>
-      </div>
-    `).join('');
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statCompleted').textContent = completed;
+    document.getElementById('statScored').textContent = scored.length;
+
+    const avgEl = document.getElementById('statAvg');
+    if (avgScore !== null) {
+      const pct = (avgScore * 10).toFixed(1);
+      avgEl.textContent = pct + '/10';
+      avgEl.className = 'stat-value ' + (pct >= 7.5 ? 'score-hi' : 'score-mid');
+    } else {
+      avgEl.textContent = '—';
+    }
+    document.getElementById('statBest').textContent = bestSession
+      ? `#${bestSession.id} · ${(bestSession.cekura_score * 10).toFixed(1)}/10`
+      : '—';
+
+    document.getElementById('statsBar').style.display = 'flex';
+
+    // Chart
+    renderChart(sessions);
+
+    // Table rows
+    tbody.innerHTML = sessions.map(s => {
+      const name = s.name || 'Anonymous';
+      const archetype = (s.archetype || '—').replace(/-/g, ' ');
+      return `<tr>
+        <td class="dim">#${s.id}</td>
+        <td>${fmtDate(s.created_at)}</td>
+        <td>${name}${s.phone ? `<br><span style="font-size:.52rem;opacity:.35">${s.phone}</span>` : ''}</td>
+        <td style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:.82rem">${archetype}</td>
+        <td>${statusChip(s.status)}</td>
+        <td>${scoreChip(s.cekura_score)}</td>
+        <td>${scoreBars(s.cekura_score, s.score_breakdown)}</td>
+        <td><a href="/transcript/${s.id}">View →</a></td>
+      </tr>`;
+    }).join('');
+
   } catch (err) {
-    list.innerHTML = `<div class="empty-state">Failed to load sessions: ${err.message}</div>`;
-    stats.style.display = 'none';
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="8">Error: ${err.message}</td></tr>`;
   }
 }
 
-loadSessions();
+/* ══════════════════════════════════════════════════════ SCORE ALL */
+async function scoreAll() {
+  const btn = document.getElementById('btnScore');
+  btn.textContent = 'Scoring…'; btn.disabled = true;
+  try {
+    const res = await fetch('/api/score-all', {method:'POST'});
+    const data = await res.json();
+    btn.textContent = `Scored ${data.scored} session${data.scored !== 1 ? 's' : ''} ✓`;
+    setTimeout(() => { btn.textContent = 'Score unscored →'; btn.disabled = false; }, 4000);
+    await loadSessions();
+  } catch(err) {
+    btn.textContent = 'Failed — retry'; btn.disabled = false;
+  }
+}
+
+// On load: auto-score any sessions that have transcripts but no score yet
+loadSessions().then(() => {
+  const unscored = document.querySelectorAll('.score-chip.unscored').length;
+  if (unscored > 0) {
+    const btn = document.getElementById('btnScore');
+    btn.textContent = `Scoring ${unscored} session${unscored > 1 ? 's' : ''}…`;
+    btn.disabled = true;
+    scoreAll();
+  }
+});
 </script>
 </body>
 </html>

@@ -141,8 +141,9 @@ async def _nemotron_suggestion(channel: str, topic: str, user_context: str) -> O
                 json={
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 120,
+                    "max_tokens": 180,
                     "temperature": 0.7,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
                 headers={"Authorization": f"Bearer {os.getenv('NEMOTRON_LLM_API_KEY', 'EMPTY')}"},
                 timeout=aiohttp.ClientTimeout(total=10),

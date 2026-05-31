@@ -144,6 +144,7 @@ async def run_onboarding(
 
     transcript_logger = TranscriptLogger(bot_name="Recall", session_key=session_key)
     profile_saved = False
+    saved_session_id: list[int] = []  # mutable container so closures can write to it
 
     async def save_profile(
         params: FunctionCallParams,
@@ -213,6 +214,7 @@ async def run_onboarding(
             user_id=user_id,
         )
         update_session_transcript(session_id, transcript_text)
+        saved_session_id.append(session_id)
 
         await ingest_session(
             user_id=str(user_id),
@@ -220,6 +222,7 @@ async def run_onboarding(
             session_id=session_id,
             transcript=transcript_text,
             metadata={"type": "onboarding", "name": name},
+            goal=answers.get("goal", ""),
         )
 
         # Generate rich personality profile in background — doesn't block bot response
@@ -292,9 +295,24 @@ async def run_onboarding(
                         user_id=None,
                     )
                     update_session_transcript(session_id, transcript_text)
+                    saved_session_id.append(session_id)
                     logger.info(f"Fallback transcript saved: session_id={session_id}")
             except Exception as e:
                 logger.warning(f"Fallback save in end_call failed: {e}")
+
+        # Score the completed session — awaited before EndTaskFrame so pipeline is still alive
+        if saved_session_id:
+            try:
+                from cekura_eval import score_session_locally
+                from memory import update_session_score
+                tx = transcript_logger.as_text(context=context)
+                score, breakdown = await score_session_locally(tx)
+                if score > 0:
+                    update_session_score(saved_session_id[-1], score, breakdown)
+                    logger.info(f"Onboarding session {saved_session_id[-1]} scored: {score:.3f}")
+            except Exception as _e:
+                logger.warning(f"Onboarding scoring failed: {_e}")
+
         await params.llm.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
         await params.result_callback(
             {"ok": True}, properties=FunctionCallResultProperties(run_llm=False)
@@ -369,24 +387,26 @@ async def run_onboarding(
 
     @transport.event_handler("on_client_disconnected")
     async def on_disconnected(transport, client):
-        try:
-            transcript_text = transcript_logger.as_text(
-                context=context,
-                header=f"Onboarding (partial) — {channel.name}",
-            )
-            if transcript_text.strip():
-                session_id = save_session(
-                    phone=phone,
-                    channel=channel_id,
-                    archetype="onboarding-partial",
-                    answers={},
-                    action_plan={},
-                    user_id=None,
+        if not profile_saved:
+            # Only save here if end_call/save_profile never ran
+            try:
+                transcript_text = transcript_logger.as_text(
+                    context=context,
+                    header=f"Onboarding (partial) — {channel.name}",
                 )
-                update_session_transcript(session_id, transcript_text)
-                logger.info(f"Partial onboarding transcript saved: session_id={session_id}")
-        except Exception as e:
-            logger.warning(f"Could not save partial transcript: {e}")
+                if transcript_text.strip():
+                    sid = save_session(
+                        phone=phone,
+                        channel=channel_id,
+                        archetype="onboarding-partial",
+                        answers={},
+                        action_plan={},
+                        user_id=None,
+                    )
+                    update_session_transcript(sid, transcript_text)
+                    logger.info(f"Early-hangup onboarding saved: session_id={sid}")
+            except Exception as e:
+                logger.warning(f"Could not save partial onboarding on disconnect: {e}")
         await worker.cancel()
 
     runner = WorkerRunner(handle_sigint=False)
